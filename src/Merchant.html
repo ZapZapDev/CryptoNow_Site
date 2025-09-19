@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CryptoNow Merchant Dashboard</title>
+
+    <!-- Preload Critical Resources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+
+    <!-- Styles -->
+    <link href="css/main.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+</head>
+
+<style>
+    body { font-family: 'Nunito', sans-serif; }
+</style>
+
+<body class="m-0 p-0 bg-[#0c0c0c] min-h-screen overflow-x-hidden font-system">
+<!-- Header -->
+<div id="header" class="fixed top-0 left-0 w-full z-50"></div>
+
+<!-- Main Content -->
+<main class="pt-24 px-6 pb-8 min-h-screen">
+    <div class="w-full max-w-7xl mx-auto">
+        <div class="w-full bg-[#0c0c0c] border-2 border-crypto-border rounded-2xl p-8 min-h-[75vh]">
+            <div id="innerGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                <!-- Networks will be rendered here -->
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Network Modal -->
+<div id="networkModal" class="fixed top-0 right-0 bottom-0 left-0 hidden flex items-center justify-center z-[60]">
+    <div class="absolute top-0 right-0 bottom-0 left-0 bg-black/30 backdrop-blur-sm" id="networkModalBackdrop"></div>
+    <div class="relative bg-[#0c0c0c] border-2 border-crypto-border rounded-2xl w-[90%] max-w-2xl max-h-[80vh] overflow-y-auto">
+        <button id="networkModalClose" class="absolute top-4 right-4 bg-[#0c0c0c] border border-crypto-border rounded-lg w-10 h-10 flex items-center justify-center hover:bg-crypto-border hover:scale-105 transition z-10">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-crypto-text-muted">
+                <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+        </button>
+        <div class="p-8">
+            <h2 class="text-white text-2xl font-bold mb-6 text-center">Create Store Chain</h2>
+            <form class="space-y-4" id="networkForm">
+                <div>
+                    <label class="block text-crypto-text-muted text-sm font-semibold mb-2">Chain Name *</label>
+                    <input type="text" id="networkName" placeholder="Enter chain name..." class="w-full p-3 rounded-xl border-2 border-crypto-border bg-crypto-card text-white placeholder:text-crypto-text-muted focus:border-crypto-focus outline-none" required>
+                </div>
+                <div>
+                    <label class="block text-crypto-text-muted text-sm font-semibold mb-2">Description</label>
+                    <textarea id="networkDescription" placeholder="Describe your services..." rows="3" class="w-full p-3 rounded-xl border-2 border-crypto-border bg-crypto-card text-white placeholder:text-crypto-text-muted focus:border-crypto-focus outline-none resize-none"></textarea>
+                </div>
+                <div class="flex justify-center pt-4">
+                    <button type="submit" id="saveNetwork" class="crypto-border text-white font-bold border-2 border-white px-6 py-3 rounded-xl hover:border-gray-300 hover:scale-95 transition duration-300 ease-in-out w-1/2">Create Chain</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Network View Modal -->
+<div id="networkViewModal" class="fixed top-0 right-0 bottom-0 left-0 hidden flex items-center justify-center z-[70] p-4">
+    <div class="absolute top-0 right-0 bottom-0 left-0 bg-black/30 backdrop-blur-sm" id="networkViewBackdrop"></div>
+    <div class="relative bg-[#0c0c0c] border-2 border-crypto-border rounded-2xl w-1/2 h-[90vh] overflow-y-auto">
+        <div class="bg-[#0c0c0c] p-4 border-b border-crypto-border flex items-center gap-4">
+            <button id="networkViewBack" class="bg-crypto-card border border-crypto-border rounded-lg w-10 h-10 flex items-center justify-center hover:bg-crypto-border hover:scale-105 transition">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-crypto-text-muted">
+                    <path d="m15 18-6-6 6-6"/>
+                </svg>
+            </button>
+            <h2 id="networkViewTitle" class="text-white text-2xl sm:text-3xl lg:text-4xl font-bold flex-1 text-center mr-14">Network Name</h2>
+        </div>
+        <div class="p-8 space-y-8">
+            <!-- QR Codes Section -->
+            <div class="relative">
+                <button id="QRCodesButton" class="crypto-border text-white font-bold border-2 px-5 py-2 rounded-lg border-white hover:border-gray-300 hover:scale-95 transition duration-300 ease-in-out inline-flex items-center">
+                    QR Codes
+                    <svg class="w-5 h-5 ml-2 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                        <path d="M6 9l6 6 6-6"/>
+                    </svg>
+                </button>
+                <div id="QRCodesDropdown" class="absolute hidden mt-2 bg-crypto-card border border-crypto-border rounded-lg min-w-max shadow-lg z-50">
+                    <button id="AddQRButton" class="w-full text-left px-4 py-2 font-medium hover:bg-crypto-border transition flex items-center gap-2 text-crypto-text-muted whitespace-nowrap">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path d="M12 6v12M6 12h12"/>
+                        </svg>
+                        Add QR Code
+                    </button>
+                    <div id="qrCodesList" class="p-2 text-sm text-white"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- QR Code Modal -->
+<div id="qrModal" class="fixed top-0 right-0 bottom-0 left-0 hidden flex items-center justify-center z-[80]">
+    <div class="absolute top-0 right-0 bottom-0 left-0 bg-black/30 backdrop-blur-sm" id="qrModalBackdrop"></div>
+    <div class="relative bg-[#0c0c0c] border-2 border-crypto-border rounded-2xl w-[90%] max-w-2xl max-h-[80vh] overflow-y-auto">
+        <button id="qrModalClose" class="absolute top-4 right-4 bg-[#0c0c0c] border border-crypto-border rounded-lg w-10 h-10 flex items-center justify-center hover:bg-crypto-border hover:scale-105 transition z-10">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-crypto-text-muted">
+                <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+        </button>
+        <div class="p-8">
+            <h2 class="text-white text-2xl font-bold mb-6 text-center">Create QR Code</h2>
+            <form class="space-y-4" id="qrForm">
+                <div>
+                    <label class="block text-crypto-text-muted text-sm font-semibold mb-2">Quantity *</label>
+                    <input type="number" id="qrQuantity" min="1" max="50" placeholder="How many QR codes to create?" class="w-full p-3 rounded-xl border-2 border-crypto-border bg-crypto-card text-white placeholder:text-crypto-text-muted focus:border-crypto-focus outline-none" required>
+                    <p class="text-crypto-text-muted text-xs mt-1">Create 1-50 QR codes at once</p>
+                </div>
+                <div class="flex justify-center pt-4">
+                    <button type="submit" id="saveQR" class="crypto-border text-white font-bold border-2 border-white px-6 py-3 rounded-xl hover:border-gray-300 hover:scale-95 transition duration-300 ease-in-out w-1/2">Create QR Code</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- QR View Modal -->
+<div id="qrViewModal" class="fixed top-0 right-0 bottom-0 left-0 hidden flex items-center justify-center z-[70] p-4">
+    <div class="absolute top-0 right-0 bottom-0 left-0 bg-black/30 backdrop-blur-sm" id="qrViewBackdrop"></div>
+    <div class="relative bg-[#0c0c0c] border-2 border-crypto-border rounded-2xl w-[95%] max-w-2xl h-[90vh] overflow-y-auto">
+        <div class="bg-[#0c0c0c] p-4 border-b border-crypto-border flex items-center gap-4">
+            <button id="qrViewBack" class="bg-crypto-card border border-crypto-border rounded-lg w-10 h-10 flex items-center justify-center hover:bg-crypto-border hover:scale-105 transition">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-crypto-text-muted">
+                    <path d="m15 18-6-6 6-6"/>
+                </svg>
+            </button>
+            <h2 id="qrViewTitle" class="text-white text-xl sm:text-2xl font-bold flex-1 text-center mr-14">QR Code</h2>
+        </div>
+        <div class="p-6 text-center space-y-6">
+            <!-- QR Code Display -->
+            <div class="bg-white p-4 rounded-xl inline-block shadow-lg">
+                <canvas id="qrCanvas" class="block"></canvas>
+            </div>
+
+            <!-- QR Information -->
+            <div class="space-y-3">
+                <div>
+                    <p class="text-crypto-text-muted text-sm mb-1">ID:</p>
+                    <p id="qrUniqueId" class="text-white text-lg font-mono bg-crypto-card px-3 py-1 rounded-lg inline-block"></p>
+                </div>
+                <div>
+                    <p class="text-crypto-text-muted text-sm mb-1">URL:</p>
+                    <div class="bg-crypto-card p-3 rounded-lg">
+                        <p id="qrCodeUrl" class="text-crypto-text-muted text-sm">Not available yet</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                <button id="downloadQR" class="crypto-border text-white font-bold border-2 border-white px-6 py-3 rounded-xl hover:border-gray-300 hover:scale-95 transition duration-300 ease-in-out flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4m4-5l5 5 5-5m-5 5V3"/>
+                    </svg>
+                    Download PNG
+                </button>
+                <button id="copyQRUrl" class="crypto-border text-white font-bold border-2 border-white px-6 py-3 rounded-xl hover:border-gray-300 hover:scale-95 transition duration-300 ease-in-out flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2m2-2h4a2 2 0 012 2v2a2 2 0 01-2 2H8a2 2 0 01-2-2V4a2 2 0 012-2z"/>
+                    </svg>
+                    Copy URL
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+<script type="module" src="/typescript/ConnectWallet.ts"></script>
+<script type="module" src="/typescript/Merchant.ts"></script>
+
+<script>
+    // Load header asynchronously with error handling
+    (function loadHeader() {
+        fetch('header')
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return res.text();
+            })
+            .then(html => {
+                const headerEl = document.getElementById('header');
+                if (headerEl) headerEl.innerHTML = html;
+            })
+            .catch(err => console.warn('Header load failed:', err.message));
+    })();
+</script>
+</body>
+</html>

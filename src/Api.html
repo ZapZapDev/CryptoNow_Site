@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CryptoNow - Session Active</title>
+    <link href="css/main.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Nunito', sans-serif; }
+    </style>
+</head>
+
+<body class="m-0 p-0 bg-[#0c0c0c] min-h-screen overflow-x-hidden font-system">
+
+<div id="header" class="fixed top-0 left-0 w-full z-50"></div>
+
+<main class="pt-24 px-6 pb-8 min-h-screen">
+    <div class="w-full max-w-7xl mx-auto">
+        <div class="w-full bg-[#0c0c0c] border-2 border-crypto-border rounded-2xl p-8 min-h-[75vh]">
+
+        </div>
+    </div>
+</main>
+
+<script>
+    // Load header asynchronously with error handling
+    (function loadHeader() {
+        fetch('header')
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return res.text();
+            })
+            .then(html => {
+                const headerEl = document.getElementById('header');
+                if (headerEl) headerEl.innerHTML = html;
+            })
+            .catch(err => console.warn('Header load failed:', err.message));
+    })();
+</script>
+
+</body>
+</html>
