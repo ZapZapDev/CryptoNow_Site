@@ -305,19 +305,16 @@ class SessionManager {
         }
 
         this.elements.generateBtn.disabled = true;
-        this.elements.generateBtn.textContent = 'Creating...';
+        this.elements.generateBtn.textContent = 'Creating QR...';
 
         try {
-            const walletAddress = localStorage.getItem("connectedWalletAddress");
-            if (!walletAddress) {
-                alert('Please connect your wallet first');
-                return;
-            }
-
-            const response = await fetch(`https://zapzap666.xyz/api/payment/${this.sessionKey}/transaction`, {
+            // УБИРАЕМ проверку кошелька - генерируем QR сразу
+            const response = await fetch(`https://zapzap666.xyz/api/payment/${this.sessionKey}/qr`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ account: walletAddress })
+                body: JSON.stringify({
+                    // Пустое тело - всё берется из payment данных
+                })
             });
 
             if (!response.ok) {
@@ -331,22 +328,25 @@ class SessionManager {
                 <div class="text-center">
                     <div class="text-22 font-bold text-white mb-1 leading-tight">$${this.paymentData.amount_usd}</div>
                     <div class="text-sm text-crypto-text-muted">${this.paymentData.item_name}</div>
+                    <div class="text-xs text-crypto-text-muted mt-2">Scan with Solana wallet</div>
                 </div>
             `;
 
-            // Создаем простой QR заглушку (можно доработать с реальным QR)
-            const qrWrapper = document.createElement('div');
-            qrWrapper.className = 'qr-code-wrapper';
-            qrWrapper.innerHTML = `
-                <div style="width: 250px; height: 250px; background: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: black; font-weight: bold;">
-                    USDC Payment QR<br>$${this.paymentData.amount_usd}
-                </div>
-            `;
-
+            // Показываем QR код
             const existingQR = this.elements.qrcode.querySelector('.qr-code-wrapper');
             if (existingQR) existingQR.remove();
 
-            this.elements.qrcode.appendChild(qrWrapper);
+            const qrCodeWrapper = document.createElement('div');
+            qrCodeWrapper.className = 'qr-code-wrapper';
+
+            const qrImage = document.createElement('img');
+            qrImage.src = data.qr_code; // QR приходит готовый с сервера
+            qrImage.alt = 'Payment QR Code';
+            qrImage.style.maxWidth = '250px';
+            qrImage.style.maxHeight = '250px';
+
+            qrCodeWrapper.appendChild(qrImage);
+            this.elements.qrcode.appendChild(qrCodeWrapper);
             this.elements.qrcode.style.display = "flex";
 
             // Скрываем селекторы
@@ -354,7 +354,7 @@ class SessionManager {
             this.elements.dropdownBtnCoin.style.display = "none";
             this.elements.amountSection.style.display = "none";
 
-            console.log('✅ Payment QR generated');
+            console.log('✅ Payment QR generated and monitoring started');
 
         } catch (error) {
             console.error('❌ Payment QR generation failed:', error);
