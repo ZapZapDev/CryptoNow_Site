@@ -1,14 +1,14 @@
 // src/typescript/QRGenerator.ts
 class QRGenerator {
     private static instance: QRGenerator;
+    private readonly size = 300;
+    private readonly defaultCanvasId = 'qrCanvas';
+
     private qrOptions = {
-        width: 300,
-        height: 300,
+        width: this.size,
+        height: this.size,
         margin: 2,
-        color: {
-            dark: '#000000',
-            light: '#FFFFFF'
-        },
+        color: { dark: '#000000', light: '#FFFFFF' },
         errorCorrectionLevel: 'M' as 'L' | 'M' | 'Q' | 'H'
     };
 
@@ -16,92 +16,78 @@ class QRGenerator {
         return this.instance ??= new QRGenerator();
     }
 
-    /**
-     * Generate QR code with full CryptoNow URL for scanning
-     */
-    async generateQRForScan(qrUniqueId: string, canvasId: string = 'qrCanvas'): Promise<void> {
-        const canvas = document.getElementById(canvasId) as HTMLCanvasElement;
-        if (!canvas) {
-            console.error('QR Canvas element not found');
-            return;
-        }
+    /** Generate QR code with full CryptoNow URL for scanning */
+    async generateQRForScan(qrUniqueId: string, canvasId: string = this.defaultCanvasId): Promise<void> {
+        const canvas = this.getCanvas(canvasId);
+        if (!canvas) return;
 
-        if (typeof (window as any).QRCode === 'undefined') {
-            console.error('❌ QRCode library not loaded');
-            this.showQRError(canvas, 'QRCode library not loaded');
+        const QRCodeLib = (window as any).QRCode;
+        if (!QRCodeLib) {
+            this.handleError(canvas, 'QRCode library not loaded');
             return;
         }
 
         try {
-            const qrUrl = `https://zapzap666.xyz/?qr=${qrUniqueId}`;
+            const qrUrl = this.buildQRUrl(qrUniqueId);
 
-            // Create temporary container for QRCodeJS
             const tempDiv = document.createElement('div');
             tempDiv.style.display = 'none';
             document.body.appendChild(tempDiv);
 
-            // Generate QR with QRCodeJS
-            const QRCodeLib = (window as any).QRCode;
             new QRCodeLib(tempDiv, {
                 text: qrUrl,
-                width: 300,
-                height: 300,
+                width: this.size,
+                height: this.size,
                 colorDark: '#000000',
                 colorLight: '#ffffff',
                 correctLevel: QRCodeLib.CorrectLevel.M
             });
 
-            // Copy to canvas
             setTimeout(() => {
                 const qrImg = tempDiv.querySelector('img') as HTMLImageElement;
-                if (qrImg) {
-                    const ctx = canvas.getContext('2d');
-                    if (ctx) {
-                        canvas.width = 300;
-                        canvas.height = 300;
-                        qrImg.onload = () => {
-                            ctx.drawImage(qrImg, 0, 0, 300, 300);
-                            tempDiv.remove();
-                        };
-                        if (qrImg.complete) qrImg.onload(null as any);
-                    }
-                }
+                if (!qrImg) return;
+
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return;
+
+                canvas.width = this.size;
+                canvas.height = this.size;
+
+                qrImg.onload = () => {
+                    ctx.drawImage(qrImg, 0, 0, this.size, this.size);
+                    tempDiv.remove();
+                };
+                if (qrImg.complete) qrImg.onload(null as any);
             }, 100);
 
-            console.log('✅ QR generated for scan:', qrUniqueId);
+            console.log('✅ QR generated:', qrUniqueId);
             this.updateQRInfo(qrUniqueId, qrUrl);
 
         } catch (error) {
-            console.error('❌ QR generation failed:', error);
-            this.showQRError(canvas, 'Failed to generate QR code');
+            this.handleError(canvas, 'Failed to generate QR code', error);
         }
     }
 
-    /**
-     * Generate QR with custom styling
-     */
+    /** Generate QR with custom styling */
     async generateStyledQR(qrUniqueId: string, canvasId: string, options: Partial<typeof this.qrOptions>): Promise<void> {
-        const canvas = document.getElementById(canvasId) as HTMLCanvasElement;
+        const canvas = this.getCanvas(canvasId);
         if (!canvas) return;
 
         const mergedOptions = { ...this.qrOptions, ...options };
-        const qrUrl = `https://zapzap666.xyz/?qr=${qrUniqueId}`;
+        const qrUrl = this.buildQRUrl(qrUniqueId);
 
         try {
             // @ts-ignore
             await QRCode.toCanvas(canvas, qrUrl, mergedOptions);
             this.updateQRInfo(qrUniqueId, qrUrl);
         } catch (error) {
-            console.error('❌ Styled QR generation failed:', error);
-            this.showQRError(canvas, 'Failed to generate styled QR');
+            this.handleError(canvas, 'Failed to generate styled QR', error);
         }
     }
 
-    /**
-     * Download QR as PNG
-     */
-    downloadQR(canvasId: string = 'qrCanvas', filename?: string): void {
-        const canvas = document.getElementById(canvasId) as HTMLCanvasElement;
+    /** Download QR as PNG */
+    downloadQR(canvasId: string = this.defaultCanvasId, filename?: string): void {
+        const canvas = this.getCanvas(canvasId);
         if (!canvas) return;
 
         try {
@@ -115,16 +101,14 @@ class QRGenerator {
 
             console.log('✅ QR downloaded:', link.download);
         } catch (error) {
-            console.error('❌ QR download failed:', error);
             alert('Download failed. Please try again.');
+            console.error('❌ QR download failed:', error);
         }
     }
 
-    /**
-     * Get QR as base64 data URL
-     */
-    getQRDataURL(canvasId: string = 'qrCanvas'): string | null {
-        const canvas = document.getElementById(canvasId) as HTMLCanvasElement;
+    /** Get QR as base64 data URL */
+    getQRDataURL(canvasId: string = this.defaultCanvasId): string | null {
+        const canvas = this.getCanvas(canvasId);
         if (!canvas) return null;
 
         try {
@@ -135,13 +119,9 @@ class QRGenerator {
         }
     }
 
-    /**
-     * Copy QR URL to clipboard
-     */
+    /** Copy QR URL to clipboard */
     async copyQRUrl(): Promise<void> {
-        const qrCodeUrlEl = document.getElementById('qrCodeUrl');
-        const url = qrCodeUrlEl?.textContent;
-
+        const url = document.getElementById('qrCodeUrl')?.textContent;
         if (!url || url === 'Not available yet') {
             alert('QR URL not available');
             return;
@@ -156,9 +136,17 @@ class QRGenerator {
         }
     }
 
-    /**
-     * Update QR information in the UI
-     */
+    // ===== Helpers =====
+    private buildQRUrl(qrUniqueId: string): string {
+        return `https://zapzap666.xyz/?qr=${qrUniqueId}`;
+    }
+
+    private getCanvas(canvasId: string): HTMLCanvasElement | null {
+        const canvas = document.getElementById(canvasId) as HTMLCanvasElement | null;
+        if (!canvas) console.error(`❌ Canvas "${canvasId}" not found`);
+        return canvas;
+    }
+
     private updateQRInfo(qrUniqueId: string, qrUrl: string): void {
         const qrUniqueIdEl = document.getElementById('qrUniqueId');
         const qrCodeUrlEl = document.getElementById('qrCodeUrl');
@@ -170,23 +158,25 @@ class QRGenerator {
         }
     }
 
-    /**
-     * Show error on canvas
-     */
+    private handleError(canvas: HTMLCanvasElement, message: string, error?: any): void {
+        console.error(`❌ ${message}`, error ?? '');
+        this.showQRError(canvas, message);
+    }
+
     private showQRError(canvas: HTMLCanvasElement, message: string): void {
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        canvas.width = 300;
-        canvas.height = 300;
+        canvas.width = this.size;
+        canvas.height = this.size;
 
         ctx.fillStyle = '#f3f4f6';
-        ctx.fillRect(0, 0, 300, 300);
+        ctx.fillRect(0, 0, this.size, this.size);
 
         ctx.fillStyle = '#ef4444';
         ctx.font = '16px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(message, 150, 150);
+        ctx.fillText(message, this.size / 2, this.size / 2);
     }
 
     private showCopyNotification(message: string): void {
@@ -213,7 +203,7 @@ class QRGenerator {
         try {
             document.execCommand('copy');
             this.showCopyNotification('QR URL copied to clipboard!');
-        } catch (error) {
+        } catch {
             alert('Copy failed. Please copy manually: ' + text);
         }
 
