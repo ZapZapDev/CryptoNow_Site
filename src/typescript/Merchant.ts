@@ -1,4 +1,4 @@
-// Merchant.ts - SEQUENCE NUMBER VERSION
+// Merchant.ts - ИСПРАВЛЕННАЯ ВЕРСИЯ (ФОРМА + УПРОЩЕННЫЕ API КЛЮЧИ)
 
 /** ================== TYPES & INTERFACES ================== */
 interface BaseEntity { id?: number; createdAt: string; }
@@ -154,9 +154,11 @@ class ModalManager {
         backBtn?.addEventListener('click', ()=>this.goBack());
     }
 
+    // 🔧 ИСПРАВЛЕНО: Правильное соответствие id формы и типа
     private handleFormSubmit(formId:string):void {
-        const typeMap: Record<string, EntityType> = { network:'network', qrForm:'qrcode' };
-        const type = typeMap[formId]; if(type) MerchantSystem.getInstance().handleSave(type);
+        const typeMap: Record<string, EntityType> = { networkForm:'network', qrForm:'qrcode' }; // ✅ ИСПРАВЛЕНО
+        const type = typeMap[formId];
+        if(type) MerchantSystem.getInstance().handleSave(type);
     }
 
     show(modalId:string, title?:string, deleteCallback?:()=>void):void{
