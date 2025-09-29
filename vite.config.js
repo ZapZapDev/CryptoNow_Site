@@ -1,3 +1,4 @@
+// vite.config.js
 import { defineConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 
@@ -6,14 +7,15 @@ export default defineConfig({
     root: 'src',
     optimizeDeps: {
         include: [
-            '@solana/pay',
             '@solana/web3.js',
-            '@solana/wallet-adapter-base',
+            '@reown/appkit',
+            '@reown/appkit-adapter-solana',
             'buffer'
         ]
     },
     define: {
         global: 'globalThis',
+        'process.env': {}
     },
     resolve: {
         alias: {
@@ -28,30 +30,17 @@ export default defineConfig({
                 merchant: './src/Merchant.html',
                 dashboard: './src/Dashboard.html',
                 payment: './src/Payment.html'
-            },
-            output: {
-                manualChunks: {
-                    'solana': ['@solana/web3.js', '@solana/pay'],
-                    'wallet': ['@solana/wallet-adapter-base']
-                }
             }
         }
     },
     server: {
         fs: {
             strict: false
-        },
-        // Middleware для dev сервера - убираем .html из URL
-        middlewareMode: false
+        }
     },
-    // Добавляем поддержку роутинга без расширений
     appType: 'spa',
-    // Custom middleware для обработки роутов
     configureServer: (server) => {
         server.middlewares.use((req, res, next) => {
-            const url = req.url;
-
-            // Обработка роутов без расширений
             const routes = {
                 '/Api': '/Api.html',
                 '/Merchant': '/Merchant.html',
@@ -60,8 +49,8 @@ export default defineConfig({
                 '/header': '/header.html'
             };
 
-            if (routes[url]) {
-                req.url = routes[url];
+            if (routes[req.url]) {
+                req.url = routes[req.url];
             }
 
             next();

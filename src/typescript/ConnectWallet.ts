@@ -1,48 +1,27 @@
-// ConnectWallet.ts - Оптимизированная версия
-import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
-import { SolflareWalletAdapter } from "@solana/wallet-adapter-solflare";
-import { GlowWalletAdapter } from "@solana/wallet-adapter-glow";
-import { BackpackWalletAdapter } from "@solana/wallet-adapter-backpack";
-
-type WalletType = "phantom" | "solflare" | "glow" | "backpack";
+// src/typescript/ConnectWallet.ts - PURE REOWN VANILLA JS
+import { modal } from './ReownConfig';
 
 const SERVER_URL = "https://zapzap666.xyz";
 
 // UI элементы
 const walletButtonDesktop = document.getElementById("walletButtonDesktop") as HTMLButtonElement;
 const walletButtonMobile = document.getElementById("walletButtonMobile") as HTMLButtonElement;
-const walletModal = document.getElementById("walletModal") as HTMLDivElement;
-const walletModalClose = document.getElementById("walletModalClose") as HTMLButtonElement;
-const walletListButtons = document.querySelectorAll<HTMLButtonElement>("#walletList button[data-wallet]");
-
-// Адаптеры
-const solanaAdapters: Record<WalletType, any> = {
-    phantom: new PhantomWalletAdapter(),
-    solflare: new SolflareWalletAdapter(),
-    glow: new GlowWalletAdapter(),
-    backpack: new BackpackWalletAdapter()
-};
 
 // Состояние
-let connectedWalletType: WalletType | null = null;
+let currentWalletAddress: string | null = null;
 let currentSessionKey: string | null = null;
 let arrowIcon: SVGElement | null = null;
 let walletDropdown: HTMLDivElement | null = null;
 
-// Флаги
-let isConnecting = false;
-let isValidatingSession = false;
-let reconnectAttempts = 0;
-const MAX_RECONNECT_ATTEMPTS = 3;
-
 /* ----------------------------- Утилиты ----------------------------- */
 
-function shortenAddress(addr: string) {
-    return addr.slice(0, 4) + "..." + addr.slice(-4);
+function shortenAddress(addr: string): string {
+    return addr.slice(0, 6) + "..." + addr.slice(-4);
 }
 
-function updateWalletButton(address: string) {
+function updateWalletButton(address: string): void {
     const shortAddr = shortenAddress(address);
+
     if (walletButtonDesktop) {
         walletButtonDesktop.innerHTML = `
             ${shortAddr}
@@ -51,21 +30,25 @@ function updateWalletButton(address: string) {
             </svg>
         `;
     }
-    if (walletButtonMobile) walletButtonMobile.textContent = `${shortAddr} ▼`;
+
+    if (walletButtonMobile) {
+        walletButtonMobile.textContent = `${shortAddr} ▼`;
+    }
 }
 
-function setArrow(up: boolean) {
-    if (arrowIcon) arrowIcon.style.transform = up ? "rotate(180deg)" : "rotate(0deg)";
+function resetWalletButton(): void {
+    if (walletButtonDesktop) {
+        walletButtonDesktop.textContent = "Connect Wallet";
+    }
+    if (walletButtonMobile) {
+        walletButtonMobile.textContent = "Connect Wallet";
+    }
+    setArrow(false);
 }
 
-function isWalletInstalled(walletType: WalletType): boolean {
-    const w = window as any;
-    switch (walletType) {
-        case "phantom": return !!w.phantom?.solana;
-        case "solflare": return !!w.solflare || !!w.solana?.isSolflare;
-        case "glow": return !!w.glow || !!w.glowSolana;
-        case "backpack": return !!w.backpack || !!w.solana?.isBackpack;
-        default: return false;
+function setArrow(up: boolean): void {
+    if (arrowIcon) {
+        arrowIcon.style.transform = up ? "rotate(180deg)" : "rotate(0deg)";
     }
 }
 
@@ -73,201 +56,211 @@ function isWalletInstalled(walletType: WalletType): boolean {
 
 async function loginToServer(walletAddress: string): Promise<string | null> {
     try {
+        console.log('🔐 Logging in to server:', walletAddress);
+
         const res = await fetch(`${SERVER_URL}/api/auth/login`, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Accept": "application/json" },
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            },
             body: JSON.stringify({ walletAddress })
         });
-        if (!res.ok) return null;
+
+        if (!res.ok) {
+            console.error('❌ Server login failed:', res.status);
+            return null;
+        }
 
         const data = await res.json();
+        console.log('✅ Login successful');
         return data.success ? data.sessionKey : null;
-    } catch {
+
+    } catch (error) {
+        console.error('❌ Login error:', error);
         return null;
     }
 }
 
 async function validateServerSession(walletAddress: string, sessionKey: string): Promise<boolean> {
-    if (isValidatingSession) return true;
-    isValidatingSession = true;
-
     try {
         const res = await fetch(`${SERVER_URL}/api/auth/validate`, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Accept": "application/json" },
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            },
             body: JSON.stringify({ walletAddress, sessionKey })
         });
+
         if (!res.ok) return false;
 
         const data = await res.json();
         return !!data.success;
-    } catch {
+
+    } catch (error) {
+        console.error('❌ Validate error:', error);
         return false;
-    } finally {
-        isValidatingSession = false;
     }
 }
 
-async function logoutFromServer(walletAddress: string) {
+async function logoutFromServer(walletAddress: string): Promise<void> {
     try {
         await fetch(`${SERVER_URL}/api/auth/logout`, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Accept": "application/json" },
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            },
             body: JSON.stringify({ walletAddress })
         });
-    } catch {}
+        console.log('✅ Logged out from server');
+    } catch (error) {
+        console.error('❌ Logout error:', error);
+    }
 }
 
-/* -------------------------- Подключение -------------------------- */
+/* -------------------------- Работа с Reown Modal -------------------------- */
 
-async function connectWallet(type: WalletType) {
-    if (isConnecting) return;
-    isConnecting = true;
+async function openReownModal(): Promise<void> {
+    try {
+        console.log('🔌 Opening Reown modal...');
+
+        // Открываем модал Reown - ОН САМ покажет все доступные кошельки!
+        await modal.open();
+
+        console.log('✅ Modal opened');
+
+    } catch (error) {
+        console.error('❌ Failed to open modal:', error);
+        alert('Failed to open wallet connection');
+    }
+}
+
+async function onWalletConnected(address: string): Promise<void> {
+    console.log('✅ Wallet connected:', address);
 
     try {
-        const adapter = solanaAdapters[type];
-        setupWalletEventListeners(adapter, type);
+        // Логинимся на бэкенд
+        const sessionKey = await loginToServer(address);
 
-        await adapter.connect({ onlyIfTrusted: false });
-        const publicKey = adapter.publicKey;
-        if (!publicKey) throw new Error("No public key");
+        if (!sessionKey) {
+            console.error('❌ Server authentication failed');
+            await modal.disconnect();
+            alert('Failed to authenticate with server');
+            return;
+        }
 
-        const walletAddress = publicKey.toBase58();
-        const sessionKey = await loginToServer(walletAddress);
-        if (!sessionKey) throw new Error("Server auth failed");
-
-        connectedWalletType = type;
+        // Сохраняем состояние
+        currentWalletAddress = address;
         currentSessionKey = sessionKey;
 
-        localStorage.setItem("connectedWalletType", type);
-        localStorage.setItem("connectedWalletAddress", walletAddress);
+        localStorage.setItem("connectedWalletAddress", address);
         localStorage.setItem("sessionKey", sessionKey);
 
-        updateWalletButton(walletAddress);
-        closeModal();
-        reconnectAttempts = 0;
-    } catch (e) {
-        await handleWalletDisconnect();
-        alert("Failed to connect wallet");
-    } finally {
-        isConnecting = false;
+        // Обновляем UI
+        updateWalletButton(address);
+
+        console.log('✅ Full connection successful');
+
+    } catch (error) {
+        console.error('❌ Connection error:', error);
+        await modal.disconnect();
+        alert('Failed to connect wallet');
     }
 }
 
-function setupWalletEventListeners(adapter: any, type: WalletType) {
-    adapter.removeAllListeners?.();
-    adapter.on("disconnect", handleWalletDisconnect);
-    adapter.on("error", handleWalletDisconnect);
-    adapter.on("accountChanged", () => setTimeout(tryReconnect, 1000));
-}
+async function handleWalletDisconnect(): Promise<void> {
+    console.log('👋 Disconnecting wallet...');
 
-/* ---------------------- Обработка отключения ---------------------- */
-
-async function handleWalletDisconnect() {
-    if (connectedWalletType) {
-        const walletAddress = localStorage.getItem("connectedWalletAddress");
-        if (walletAddress) await logoutFromServer(walletAddress);
-
-        connectedWalletType = null;
-        currentSessionKey = null;
-
-        localStorage.clear();
-
-        if (walletButtonDesktop) walletButtonDesktop.textContent = "Connect Wallet";
-        if (walletButtonMobile) walletButtonMobile.textContent = "Connect Wallet";
-        setArrow(false);
+    if (currentWalletAddress) {
+        await logoutFromServer(currentWalletAddress);
     }
+
+    currentWalletAddress = null;
+    currentSessionKey = null;
+
+    localStorage.clear();
+    resetWalletButton();
 }
 
-async function tryReconnect() {
-    if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) return handleWalletDisconnect();
+/* ------------------- Подписка на события Reown ------------------- */
 
-    reconnectAttempts++;
-    const savedType = localStorage.getItem("connectedWalletType") as WalletType;
-    const savedAddress = localStorage.getItem("connectedWalletAddress");
-    const savedSessionKey = localStorage.getItem("sessionKey");
-    if (!savedType || !savedAddress || !savedSessionKey) return handleWalletDisconnect();
+function setupReownListeners(): void {
+    console.log('🎧 Setting up Reown listeners...');
 
-    try {
-        if (!(await validateServerSession(savedAddress, savedSessionKey))) return handleWalletDisconnect();
-        if (!isWalletInstalled(savedType)) return handleWalletDisconnect();
+    // Подписываемся на изменения состояния модала
+    modal.subscribeState((state) => {
+        console.log('🔔 Modal state changed:', state);
+    });
 
-        const adapter = solanaAdapters[savedType];
-        await adapter.connect({ onlyIfTrusted: false });
+    // Подписываемся на изменения аккаунта
+    modal.subscribeAccount((account) => {
+        console.log('👛 Account changed:', account);
 
-        if (adapter.connected && adapter.publicKey?.toBase58() === savedAddress) {
-            connectedWalletType = savedType;
-            currentSessionKey = savedSessionKey;
-            updateWalletButton(savedAddress);
-            reconnectAttempts = 0;
+        if (account && account.address) {
+            const address = account.address;
+
+            // Если это новый кошелек
+            if (address !== currentWalletAddress) {
+                onWalletConnected(address);
+            }
+        } else {
+            // Кошелек отключен
+            if (currentWalletAddress) {
+                handleWalletDisconnect();
+            }
         }
-    } catch {
-        await handleWalletDisconnect();
-    }
+    });
 }
-
-/* -------------------------- UI Логика -------------------------- */
-
-function disconnectWallet() { handleWalletDisconnect(); }
-function openModal() { walletModal?.classList.replace("hidden", "flex"); }
-function closeModal() { walletModal?.classList.replace("flex", "hidden"); }
 
 /* --------------------- Автоподключение --------------------- */
 
-window.addEventListener("load", async () => {
-    document.querySelectorAll<HTMLButtonElement>("#walletModal button[data-wallet]").forEach(btn => {
-        const walletType = btn.getAttribute("data-wallet") as WalletType;
-        const statusSpan = btn.querySelector<HTMLSpanElement>(".wallet-status");
-        if (!statusSpan) return;
-        if (isWalletInstalled(walletType)) {
-            statusSpan.textContent = "Installed";
-            statusSpan.className = "wallet-status bg-green-600/20 text-green-400 border border-green-600/30";
-        } else {
-            statusSpan.style.display = "none";
-        }
-    });
-
-    await new Promise(r => setTimeout(r, 500));
-    const savedType = localStorage.getItem("connectedWalletType") as WalletType;
+async function autoConnect(): Promise<void> {
     const savedAddress = localStorage.getItem("connectedWalletAddress");
     const savedSessionKey = localStorage.getItem("sessionKey");
-    if (!savedType || !savedAddress || !savedSessionKey) return;
+
+    if (!savedAddress || !savedSessionKey) {
+        console.log('ℹ️ No saved session found');
+        return;
+    }
+
+    console.log('🔄 Attempting auto-connect...');
 
     try {
-        if (!isWalletInstalled(savedType)) return handleWalletDisconnect();
-        if (!(await validateServerSession(savedAddress, savedSessionKey))) return handleWalletDisconnect();
+        // Проверяем валидность сессии на сервере
+        const isValid = await validateServerSession(savedAddress, savedSessionKey);
 
-        const adapter = solanaAdapters[savedType];
-        setupWalletEventListeners(adapter, savedType);
-        await adapter.connect({ onlyIfTrusted: true });
+        if (!isValid) {
+            console.log('❌ Saved session is invalid');
+            localStorage.clear();
+            return;
+        }
 
-        if (adapter.connected && adapter.publicKey?.toBase58() === savedAddress) {
-            connectedWalletType = savedType;
+        // Проверяем текущее состояние Reown
+        const account = modal.getAccount();
+
+        if (account && account.address === savedAddress) {
+            currentWalletAddress = savedAddress;
             currentSessionKey = savedSessionKey;
             updateWalletButton(savedAddress);
+            console.log('✅ Auto-connected successfully');
+        } else {
+            console.log('⚠️ Reown not connected, clearing session');
+            localStorage.clear();
         }
-    } catch {
-        await handleWalletDisconnect();
+
+    } catch (error) {
+        console.error('❌ Auto-connect failed:', error);
+        localStorage.clear();
     }
-});
+}
 
-/* ------------------------- Обработчики ------------------------- */
+/* ------------------------- UI: Dropdown ------------------------- */
 
-walletButtonMobile?.addEventListener("click", () => !connectedWalletType && openModal());
-walletModalClose?.addEventListener("click", closeModal);
+function setupDropdown(): void {
+    if (!walletButtonDesktop) return;
 
-walletListButtons.forEach(btn => {
-    btn.addEventListener("click", async e => {
-        const walletType = (e.currentTarget as HTMLButtonElement).getAttribute("data-wallet") as WalletType;
-        if (!walletType) return;
-        if (!isWalletInstalled(walletType)) return alert(`${walletType} wallet is not installed.`);
-        await connectWallet(walletType);
-    });
-});
-
-/* ------------------- Dropdown логика ------------------- */
-
-if (walletButtonDesktop) {
     walletDropdown = document.createElement("div");
     walletDropdown.id = "walletDropdown";
     walletDropdown.className = "absolute bg-crypto-card border border-crypto-border rounded-lg w-44 hidden shadow-lg z-50";
@@ -280,48 +273,98 @@ if (walletButtonDesktop) {
             Logout
         </button>
     `;
+
     document.body.appendChild(walletDropdown);
 
-    const positionDropdown = () => {
+    const positionDropdown = (): void => {
         if (!walletDropdown || !walletButtonDesktop) return;
         const rect = walletButtonDesktop.getBoundingClientRect();
-        walletDropdown.style.top = rect.bottom + window.scrollY + "px";
-        walletDropdown.style.left = rect.left + window.scrollX + "px";
+        walletDropdown.style.top = `${rect.bottom + window.scrollY}px`;
+        walletDropdown.style.left = `${rect.left + window.scrollX}px`;
     };
 
-    const showDropdown = () => {
-        if (!walletDropdown) return;
+    const showDropdown = (): void => {
+        if (!currentWalletAddress || !walletDropdown) return;
         positionDropdown();
         walletDropdown.classList.remove("hidden");
         setArrow(true);
     };
 
-    const hideDropdown = () => {
+    const hideDropdown = (): void => {
         if (!walletDropdown) return;
         walletDropdown.classList.add("hidden");
         setArrow(false);
     };
 
     const logoutBtn = walletDropdown.querySelector<HTMLButtonElement>("#logoutButton");
-    logoutBtn?.addEventListener("click", () => { disconnectWallet(); hideDropdown(); });
+    logoutBtn?.addEventListener("click", async () => {
+        await modal.disconnect();
+        hideDropdown();
+    });
 
     walletButtonDesktop.addEventListener("mouseenter", showDropdown);
     walletButtonDesktop.addEventListener("mouseleave", hideDropdown);
     walletDropdown.addEventListener("mouseenter", showDropdown);
     walletDropdown.addEventListener("mouseleave", hideDropdown);
-
-    walletButtonDesktop.addEventListener("click", () => !connectedWalletType && openModal());
 }
 
-/* ------------------- Прочие обработчики ------------------- */
+/* ------------------- Обработчики кнопок ------------------- */
 
-document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState !== "visible" || !connectedWalletType) return;
-    const savedAddress = localStorage.getItem("connectedWalletAddress");
-    const savedSessionKey = localStorage.getItem("sessionKey");
-    if (savedAddress && savedSessionKey && !isValidatingSession) {
-        validateServerSession(savedAddress, savedSessionKey).then(isValid => {
-            if (!isValid) handleWalletDisconnect();
-        });
-    }
+function setupEventListeners(): void {
+    console.log('🎯 Setting up button listeners...');
+
+    walletButtonDesktop?.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        console.log('🖱️ Desktop button clicked');
+
+        if (!currentWalletAddress) {
+            await openReownModal();
+        }
+    });
+
+    walletButtonMobile?.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        console.log('🖱️ Mobile button clicked');
+
+        if (!currentWalletAddress) {
+            await openReownModal();
+        }
+    });
+
+    document.addEventListener("visibilitychange", async () => {
+        if (document.visibilityState !== "visible" || !currentWalletAddress) return;
+
+        const savedAddress = localStorage.getItem("connectedWalletAddress");
+        const savedSessionKey = localStorage.getItem("sessionKey");
+
+        if (savedAddress && savedSessionKey) {
+            const isValid = await validateServerSession(savedAddress, savedSessionKey);
+            if (!isValid) {
+                await modal.disconnect();
+            }
+        }
+    });
+}
+
+/* ------------------- Инициализация ------------------- */
+
+window.addEventListener("load", async () => {
+    console.log('🚀 Initializing Reown wallet system...');
+
+    // Задержка для полной инициализации Reown
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Настройка слушателей
+    setupReownListeners();
+    setupDropdown();
+    setupEventListeners();
+
+    // Попытка автоподключения
+    await autoConnect();
+
+    console.log('✅ Wallet system ready');
 });
