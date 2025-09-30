@@ -1,15 +1,15 @@
-// src/typescript/ReownConfig.ts - PURE VANILLA JS VERSION
+// src/typescript/ReownConfig.ts
 import { createAppKit } from '@reown/appkit';
 import { SolanaAdapter } from '@reown/appkit-adapter-solana';
 import { solana, solanaTestnet, solanaDevnet } from '@reown/appkit/networks';
 
-// ⚠️ ЗАМЕНИ НА СВОЙ PROJECT ID ИЗ REOWN CLOUD
-const REOWN_PROJECT_ID = 'твой_project_id_здесь';
+// ⚠️ REPLACE WITH YOUR PROJECT ID FROM REOWN CLOUD
+const REOWN_PROJECT_ID = '9ab07bacd3c34828a46f54c97d40b760';
 
-// Создаем Solana адаптер ПРОТОКОЛА (не кошельков!)
+// Solana protocol adapter (NOT wallet adapters!)
 const solanaWeb3JsAdapter = new SolanaAdapter();
 
-// Метаданные приложения
+// App metadata
 const metadata = {
     name: 'CryptoNow',
     description: 'CryptoNow Payment Platform',
@@ -17,17 +17,31 @@ const metadata = {
     icons: ['https://avatars.githubusercontent.com/u/37784886']
 };
 
-// Создаем AppKit для Vanilla JS (без React!)
+// Create AppKit with optimized config
 export const modal = createAppKit({
     adapters: [solanaWeb3JsAdapter],
     networks: [solana, solanaTestnet, solanaDevnet],
     metadata,
     projectId: REOWN_PROJECT_ID,
+
     features: {
-        analytics: false
-    }
+        analytics: false,
+        email: false,
+        socials: false,
+        onramp: false,
+        swaps: false,
+        history: false
+    },
+
+    enableWalletConnect: true,
+    enableInjected: true,
+    enableCoinbaseWallet: false,
+    enableEIP6963: true,
+
+    allowUnsupportedChains: false,
+    defaultNetwork: solana,
 });
 
-console.log('✅ Reown AppKit initialized (Vanilla JS)');
+console.log('✅ Reown AppKit initialized (Vanilla JS - Solana Only)');
 
 export default modal;
