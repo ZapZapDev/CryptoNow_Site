@@ -258,7 +258,10 @@ class QRCodeManager {
             }
 
             const qrUniqueIdEl = DOMUtils.getElement('qrUniqueId'); if(qrUniqueIdEl) qrUniqueIdEl.textContent = qrUniqueId;
-            const qrCodeUrl = DOMUtils.getElement('qrCodeUrl'); if(qrCodeUrl){ qrCodeUrl.textContent = qrUrl; qrCodeUrl.className='text-white text-sm break-all'; }
+            const qrCodeUrl = DOMUtils.getElement('qrCodeUrl');
+            if (qrCodeUrl) {
+                qrCodeUrl.innerHTML = `<a href="${qrUrl}" target="_blank" class="text-white text-sm break-all underline">${qrUrl}</a>`;
+            }
 
         }catch(e){ console.error('QR generation failed',e); }
     }
@@ -274,6 +277,7 @@ class QRCodeManager {
         if(!url||url===''){ alert('QR URL not available'); return; }
         try{ await navigator.clipboard.writeText(url); }catch{ alert('Copy failed, copy manually: '+url); }
     }
+
 }
 
 /** ================== MAIN MERCHANT SYSTEM ================== */

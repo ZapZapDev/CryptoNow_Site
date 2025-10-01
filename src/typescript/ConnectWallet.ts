@@ -263,7 +263,7 @@ function setupDropdown(): void {
 
     walletDropdown = document.createElement("div");
     walletDropdown.id = "walletDropdown";
-    walletDropdown.className = "absolute bg-crypto-card border border-crypto-border rounded-lg w-44 hidden shadow-lg z-50";
+    walletDropdown.className = "absolute bg-crypto-card border-2 border-crypto-border rounded-lg w-44 hidden shadow-lg z-50";
 
     walletDropdown.innerHTML = `
         <button id="logoutButton" class="w-full text-left px-4 py-2 text-red-500 font-medium hover:bg-crypto-border flex items-center gap-2">
