@@ -1,8 +1,8 @@
-// Merchant.ts - ИСПРАВЛЕННАЯ ВЕРСИЯ (ФОРМА + УПРОЩЕННЫЕ API КЛЮЧИ)
+// Merchant.ts
 
 /** ================== TYPES & INTERFACES ================== */
 interface BaseEntity { id?: number; createdAt: string; }
-interface QRCode extends BaseEntity { qrId: number; qrUniqueId: string; sequenceNumber: number; displayName?: string; }
+interface QRCode extends BaseEntity { qrId: number; qrUniqueId: string; displayName?: string; }
 interface Network extends BaseEntity { name: string; description: string; qrCodes?: QRCode[]; }
 interface ApiResponse<T = any> { success: boolean; data?: T; error?: string; message?: string; }
 type EntityType = 'network' | 'qrcode';
@@ -49,7 +49,7 @@ class MerchantAPI {
             if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
             return await res.json();
         } catch (e) {
-            console.error('❌ API request failed', e);
+            console.error('API request failed', e);
             return { success: false, error: e instanceof Error ? e.message : 'Network error' };
         }
     }
@@ -154,9 +154,8 @@ class ModalManager {
         backBtn?.addEventListener('click', ()=>this.goBack());
     }
 
-    // 🔧 ИСПРАВЛЕНО: Правильное соответствие id формы и типа
     private handleFormSubmit(formId:string):void {
-        const typeMap: Record<string, EntityType> = { networkForm:'network', qrForm:'qrcode' }; // ✅ ИСПРАВЛЕНО
+        const typeMap: Record<string, EntityType> = { networkForm:'network', qrForm:'qrcode' };
         const type = typeMap[formId];
         if(type) MerchantSystem.getInstance().handleSave(type);
     }
@@ -314,7 +313,8 @@ class MerchantSystem {
         this.state.currentNetworkId=network.id!;
         try{
             const qrRes=await MerchantAPI.qrcodes.list(network.id!);
-            this.renderEntityList('qrCodesList', qrRes.data||[], item=>this.openQRView(item), item=>item.displayName||`${item.sequenceNumber} (Id:${item.qrUniqueId})`);
+            // Используем displayName или fallback на "QR ID: {qrId} ({qrUniqueId})"
+            this.renderEntityList('qrCodesList', qrRes.data||[], item=>this.openQRView(item), item=>item.displayName||`QR ID: ${item.qrId} (${item.qrUniqueId})`);
             const deleteCb = ()=>this.handleDelete('network', network.id!, ()=>ModalManager.getInstance().clear());
             ModalManager.getInstance().show('networkViewModal', network.name, deleteCb);
         }catch(e){ console.error(e); alert('Failed to load network data'); }
@@ -323,7 +323,8 @@ class MerchantSystem {
     private async openQRView(qr:QRCode):Promise<void>{
         this.state.currentQRId=qr.qrId;
         const deleteCb = ()=>this.handleDelete('qrcode', qr.qrId, ()=>ModalManager.getInstance().goBack());
-        ModalManager.getInstance().show('qrViewModal', `QR ${qr.sequenceNumber}`, deleteCb);
+        // Заголовок модала теперь использует qr_id вместо sequence_number
+        ModalManager.getInstance().show('qrViewModal', `QR ID: ${qr.qrId}`, deleteCb);
         await QRCodeManager.getInstance().generateQRImage(qr.qrUniqueId);
     }
 
@@ -342,9 +343,9 @@ class MerchantSystem {
         else alert(res.error||'Failed to create QR codes');
     }
 
-    private renderEntityList<T extends { qrId?: number; sequenceNumber?: number; displayName?: string }>(id:string, items:T[], onClick:(item:T)=>void, getText?:(item:T)=>string):void{
+    private renderEntityList<T extends { qrId?: number; qrUniqueId?: string; displayName?: string }>(id:string, items:T[], onClick:(item:T)=>void, getText?:(item:T)=>string):void{
         const container = DOMUtils.getElement(id); if(!container) return; container.innerHTML='';
-        items.forEach(item=>container.appendChild(DOMUtils.createListItem(getText?getText(item):`${item.sequenceNumber}`, ()=>onClick(item))));
+        items.forEach(item=>container.appendChild(DOMUtils.createListItem(getText?getText(item):`QR ${item.qrId}`, ()=>onClick(item))));
     }
 
     private openCreateModal(type:EntityType):void{

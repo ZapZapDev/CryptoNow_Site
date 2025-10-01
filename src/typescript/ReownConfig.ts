@@ -20,7 +20,8 @@ const metadata = {
 // Create AppKit with optimized config
 export const modal = createAppKit({
     adapters: [solanaWeb3JsAdapter],
-    networks: [solana, solanaTestnet, solanaDevnet],
+    networks: [solana],
+    defaultNetwork: solana,
     metadata,
     projectId: REOWN_PROJECT_ID,
 
@@ -39,7 +40,6 @@ export const modal = createAppKit({
     enableEIP6963: true,
 
     allowUnsupportedChains: false,
-    defaultNetwork: solana,
 });
 
 console.log('✅ Reown AppKit initialized (Vanilla JS - Solana Only)');
