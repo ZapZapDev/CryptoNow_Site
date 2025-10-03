@@ -3,7 +3,6 @@ import { createAppKit } from '@reown/appkit';
 import { SolanaAdapter } from '@reown/appkit-adapter-solana';
 import { solana, solanaTestnet, solanaDevnet } from '@reown/appkit/networks';
 
-// ⚠️ REPLACE WITH YOUR PROJECT ID FROM REOWN CLOUD
 const REOWN_PROJECT_ID = '9ab07bacd3c34828a46f54c97d40b760';
 
 // Solana protocol adapter (NOT wallet adapters!)
@@ -41,7 +40,5 @@ export const modal = createAppKit({
 
     allowUnsupportedChains: false,
 });
-
-console.log('✅ Reown AppKit initialized (Vanilla JS - Solana Only)');
 
 export default modal;

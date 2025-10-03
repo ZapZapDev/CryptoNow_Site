@@ -313,8 +313,8 @@ class MerchantSystem {
         this.state.currentNetworkId=network.id!;
         try{
             const qrRes=await MerchantAPI.qrcodes.list(network.id!);
-            // Используем displayName или fallback на "QR ID: {qrId} ({qrUniqueId})"
-            this.renderEntityList('qrCodesList', qrRes.data||[], item=>this.openQRView(item), item=>item.displayName||`QR ID: ${item.qrId} (${item.qrUniqueId})`);
+            // ✅ ИСПРАВЛЕНО: Используем displayName или fallback на "QR ID: {qrUniqueId}"
+            this.renderEntityList('qrCodesList', qrRes.data||[], item=>this.openQRView(item), item=>item.displayName||`QR ID: ${item.qrUniqueId}`);
             const deleteCb = ()=>this.handleDelete('network', network.id!, ()=>ModalManager.getInstance().clear());
             ModalManager.getInstance().show('networkViewModal', network.name, deleteCb);
         }catch(e){ console.error(e); alert('Failed to load network data'); }
@@ -323,8 +323,8 @@ class MerchantSystem {
     private async openQRView(qr:QRCode):Promise<void>{
         this.state.currentQRId=qr.qrId;
         const deleteCb = ()=>this.handleDelete('qrcode', qr.qrId, ()=>ModalManager.getInstance().goBack());
-        // Заголовок модала теперь использует qr_id вместо sequence_number
-        ModalManager.getInstance().show('qrViewModal', `QR ID: ${qr.qrId}`, deleteCb);
+        // ✅ ИСПРАВЛЕНО: Заголовок модала теперь использует qr_unique_id
+        ModalManager.getInstance().show('qrViewModal', `QR ID: ${qr.qrUniqueId}`, deleteCb);
         await QRCodeManager.getInstance().generateQRImage(qr.qrUniqueId);
     }
 
