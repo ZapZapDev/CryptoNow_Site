@@ -8,6 +8,8 @@ class SessionManager {
     private paymentData: any = null;
     private selectedNetwork: string | null = null;
     private selectedCoin: string | null = null;
+    private readonly SERVER_URL = 'https://zapzap666.xyz';
+    private readonly WS_URL = 'wss://zapzap666.xyz';
 
     private elements = {
         qrCodeId: document.getElementById('qrCodeId')!,
@@ -26,13 +28,103 @@ class SessionManager {
         paymentInfo: document.getElementById('paymentInfo')!
     };
 
-    init(): void {
+    async init(): Promise<void> {
         this.sessionKey = this.extractSessionKey();
         if (!this.sessionKey) return this.showError('Invalid session key');
 
+        await this.loadSessionState();
         this.connectWebSocket();
         this.setupDropdowns();
+    }
+
+    private async loadSessionState(): Promise<void> {
+        try {
+            const response = await fetch(`${this.SERVER_URL}/api/payment/${this.sessionKey}/state`);
+            if (!response.ok) throw new Error('Failed to load session state');
+
+            const data = await response.json();
+            if (!data.success) throw new Error(data.error);
+
+            const { uiState, qrId, payment, timeLeft } = data.data;
+
+            this.elements.qrCodeId.textContent = qrId;
+            if (timeLeft) this.startCountdown(timeLeft);
+
+            if (uiState === 'wait') {
+                this.showWaitState();
+            } else if (uiState === 'choose' && payment) {
+                this.paymentData = payment;
+                this.showChooseState();
+            } else if (uiState === 'payment' && payment) {
+                this.paymentData = payment;
+                await this.showPaymentState();
+            }
+
+        } catch (error) {
+            console.error('Load state error:', error);
+            this.showWaitState();
+        }
+    }
+
+    private showWaitState(): void {
+        this.elements.statusTitle.textContent = 'Waiting for Payment';
         this.hidePaymentControls();
+    }
+
+    private showChooseState(): void {
+        this.elements.statusTitle.textContent = 'Choose Payment Method';
+        this.elements.dropdownBtnNetwork.style.display = 'block';
+        this.elements.dropdownBtnCoin.style.display = 'block';
+        this.elements.amountSection.style.display = 'none';
+        this.elements.qrcode.style.display = 'none';
+        this.showPaymentAmount();
+    }
+
+    private async showPaymentState(): Promise<void> {
+        this.elements.statusTitle.textContent = 'Scan to Pay';
+        this.hidePaymentControls();
+        await this.regenerateQR();
+    }
+
+    private async regenerateQR(): Promise<void> {
+        try {
+            const response = await fetch(`${this.SERVER_URL}/api/payment/${this.sessionKey}/qr`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const data = await response.json();
+
+            this.elements.paymentInfo.innerHTML = `
+                <div class="text-center">
+                    <div class="text-22 font-bold text-white mb-1 leading-tight">$${this.paymentData.amount_usd}</div>
+                    <div class="text-sm text-crypto-text-muted">${this.paymentData.item_name}</div>
+                    <div class="text-xs text-crypto-text-muted mt-2">Scan with Solana wallet</div>
+                </div>
+            `;
+
+            const existingQR = this.elements.qrcode.querySelector('.qr-code-wrapper');
+            if (existingQR) existingQR.remove();
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'qr-code-wrapper';
+
+            const img = document.createElement('img');
+            img.src = data.qr_code;
+            img.alt = 'Payment QR Code';
+            img.style.maxWidth = img.style.maxHeight = '250px';
+
+            wrapper.appendChild(img);
+            this.elements.qrcode.appendChild(wrapper);
+            this.elements.qrcode.style.display = 'flex';
+
+        } catch (error: any) {
+            console.error('Regenerate QR error:', error);
+            this.showError('Failed to load payment QR');
+        }
     }
 
     private extractSessionKey(): string | null {
@@ -42,7 +134,7 @@ class SessionManager {
     private connectWebSocket(): void {
         if (this.isExpired || this.isDestroyed) return;
 
-        this.socket = new WebSocket(`wss://zapzap666.xyz/ws/session?session=${this.sessionKey}`);
+        this.socket = new WebSocket(`${this.WS_URL}/ws/session?session=${this.sessionKey}`);
 
         this.socket.onopen = () => setTimeout(() => this.requestStatus(), 100);
         this.socket.onmessage = e => this.handleMessage(e);
@@ -59,13 +151,18 @@ class SessionManager {
                 case 'session_connected':
                     if (data.qrCodeId) this.elements.qrCodeId.textContent = data.qrCodeId;
                     if (typeof data.timeLeft === 'number') this.startCountdown(data.timeLeft);
-                    this.elements.statusTitle.textContent = 'Session Active';
                     break;
 
                 case 'payment_created':
-                    if (data.data) {
+                    if (data.data && data.uiState === 'choose') {
                         this.paymentData = data.data;
-                        this.showPaymentControls();
+                        this.showChooseState();
+                    }
+                    break;
+
+                case 'qr_generated':
+                    if (data.uiState === 'payment') {
+                        this.showPaymentState();
                     }
                     break;
 
@@ -142,7 +239,6 @@ class SessionManager {
             this.elements.dropdownArrowCoin,
             item => {
                 this.selectedCoin = item.getAttribute('data-coin');
-                if (this.paymentData) this.showPaymentAmount();
                 this.updatePayButton();
             }
         );
@@ -161,12 +257,16 @@ class SessionManager {
             const isHidden = content.classList.contains('hidden');
             document.querySelectorAll('.dropdown-content').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.dropdown span').forEach(el => el.classList.remove('dropdown-arrow-rotate'));
-            if (isHidden) { content.classList.remove('hidden'); arrow.classList.add('dropdown-arrow-rotate'); }
+            if (isHidden) {
+                content.classList.remove('hidden');
+                arrow.classList.add('dropdown-arrow-rotate');
+            }
         });
 
         content.querySelectorAll('.dropdown-item').forEach(item => {
             item.addEventListener('click', () => {
-                btn.childNodes[0].textContent = item.textContent?.trim() || '';
+                const selectedText = item.textContent?.trim() || '';
+                btn.childNodes[0].textContent = selectedText;
                 content.classList.add('hidden');
                 arrow.classList.remove('dropdown-arrow-rotate');
                 callback(item as HTMLDivElement);
@@ -175,12 +275,10 @@ class SessionManager {
     }
 
     private hidePaymentControls(): void {
-        ['dropdownBtnNetwork', 'dropdownBtnCoin', 'amountSection', 'qrcode'].forEach(id => this.elements[id as keyof typeof this.elements].style.display = 'none');
-    }
-
-    private showPaymentControls(): void {
-        if (!this.paymentData) return;
-        ['dropdownBtnNetwork', 'dropdownBtnCoin'].forEach(id => this.elements[id as keyof typeof this.elements].style.display = 'block');
+        ['dropdownBtnNetwork', 'dropdownBtnCoin', 'amountSection', 'qrcode'].forEach(id => {
+            const element = this.elements[id as keyof typeof this.elements];
+            if (element) element.style.display = 'none';
+        });
     }
 
     private showPaymentAmount(): void {
@@ -234,7 +332,7 @@ class SessionManager {
         btn.textContent = 'Creating QR...';
 
         try {
-            const response = await fetch(`https://zapzap666.xyz/api/payment/${this.sessionKey}/qr`, {
+            const response = await fetch(`${this.SERVER_URL}/api/payment/${this.sessionKey}/qr`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({})
@@ -283,7 +381,7 @@ class SessionManager {
         this.elements.statusTitle.textContent = 'Payment Completed!';
         this.elements.paymentInfo.innerHTML = `
             <div class="text-center">
-                <div class="text-green-400 text-xl font-bold mb-2">✅ Payment Successful</div>
+                <div class="text-green-400 text-xl font-bold mb-2">Payment Successful</div>
                 <div class="text-white">$${data.amount_usd} paid</div>
                 <div class="text-xs text-crypto-text-muted mt-2">Signature: ${data.signature.slice(0,16)}...</div>
             </div>

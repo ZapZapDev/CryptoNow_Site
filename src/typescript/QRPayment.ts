@@ -1,5 +1,5 @@
-// QRPayment.ts - QR Code Payment Module
-const SERVER_URL = 'http://zapzap666.xyz:8080';
+// QRPayment.ts
+const SERVER_URL = 'https://zapzap666.xyz';
 
 export async function generateQR(amountValue: string, coin: string): Promise<void> {
     console.log('Starting QR generation:', { amountValue, coin });

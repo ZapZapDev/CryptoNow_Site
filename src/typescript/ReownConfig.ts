@@ -11,9 +11,8 @@ const solanaWeb3JsAdapter = new SolanaAdapter();
 // App metadata
 const metadata = {
     name: 'CryptoNow',
-    description: 'CryptoNow Payment Platform',
+    description: 'Crypto Payment Platform',
     url: 'https://zapzap666.xyz',
-    icons: ['https://avatars.githubusercontent.com/u/37784886']
 };
 
 // Create AppKit with optimized config
