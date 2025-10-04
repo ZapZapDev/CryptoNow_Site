@@ -1,4 +1,3 @@
-// SessionManager.ts - FINAL FIX
 class SessionManager {
     private sessionKey: string | null = null;
     private socket: WebSocket | null = null;
@@ -16,8 +15,6 @@ class SessionManager {
         timeLeft: document.getElementById('timeLeft')!,
         amountRow: document.getElementById('amountRow')!,
         amountValue: document.getElementById('amountValue')!,
-        itemRow: document.getElementById('itemRow')!,
-        itemValue: document.getElementById('itemValue')!,
         dropdownBtnNetwork: document.getElementById('dropdownBtnNetwork') as HTMLButtonElement,
         dropdownBtnCoin: document.getElementById('dropdownBtnCoin') as HTMLButtonElement,
         dropdownContentNetwork: document.getElementById('dropdownContentNetwork')!,
@@ -33,7 +30,8 @@ class SessionManager {
         this.sessionKey = new URLSearchParams(window.location.search).get('session');
 
         if (!this.sessionKey) {
-            return this.showConnectionError();
+            document.body.innerHTML = '<div class="min-h-screen flex items-center justify-center bg-[#0c0c0c]"><div class="text-red-400 text-3xl font-bold">404</div></div>';
+            return;
         }
 
         this.initializeDisabledStates();
@@ -43,17 +41,15 @@ class SessionManager {
             this.connectWebSocket();
             this.setupDropdowns();
         } catch {
-            this.showConnectionError();
+            document.body.innerHTML = '<div class="min-h-screen flex items-center justify-center bg-[#0c0c0c]"><div class="text-red-400 text-3xl font-bold">404</div></div>';
         }
     }
 
     private initializeDisabledStates(): void {
-        // Coin dropdown disabled изначально
-        this.elements.dropdownBtnCoin.disabled = true;
-        this.elements.dropdownBtnCoin.style.opacity = '0.5';
-        this.elements.dropdownBtnCoin.style.cursor = 'not-allowed';
+        this.elements.dropdownBtnNetwork.disabled = true;
+        this.elements.dropdownBtnNetwork.style.opacity = '0.5';
+        this.elements.dropdownBtnNetwork.style.cursor = 'not-allowed';
 
-        // Pay Now button disabled изначально
         this.elements.generateBtn.disabled = true;
         this.elements.generateBtn.style.opacity = '0.5';
         this.elements.generateBtn.style.cursor = 'not-allowed';
@@ -61,6 +57,7 @@ class SessionManager {
 
     private async loadSessionState(): Promise<void> {
         const response = await fetch(`${this.SERVER_URL}/api/payment/${this.sessionKey}/state`);
+
         if (!response.ok) throw new Error('Session not found');
 
         const data = await response.json();
@@ -105,31 +102,24 @@ class SessionManager {
 
         this.elements.amountValue.textContent = `${this.paymentData.amount_usd} USD`;
         this.elements.amountRow.classList.remove('hidden');
-
-        if (this.paymentData.item_name) {
-            this.elements.itemValue.textContent = this.paymentData.item_name;
-            this.elements.itemRow.classList.remove('hidden');
-        }
     }
 
     private showPaymentControls(): void {
-        // ✅ ФИКС: Работаем с родительскими div элементами
-        const networkDropdownParent = this.elements.dropdownBtnNetwork.parentElement as HTMLElement;
         const coinDropdownParent = this.elements.dropdownBtnCoin.parentElement as HTMLElement;
+        const networkDropdownParent = this.elements.dropdownBtnNetwork.parentElement as HTMLElement;
 
-        if (networkDropdownParent) networkDropdownParent.style.display = 'block';
         if (coinDropdownParent) coinDropdownParent.style.display = 'block';
+        if (networkDropdownParent) networkDropdownParent.style.display = 'block';
 
         this.elements.generateBtn.style.display = 'block';
     }
 
     private hidePaymentControls(): void {
-        // ✅ ФИКС: Работаем с родительскими div элементами
-        const networkDropdownParent = this.elements.dropdownBtnNetwork.parentElement as HTMLElement;
         const coinDropdownParent = this.elements.dropdownBtnCoin.parentElement as HTMLElement;
+        const networkDropdownParent = this.elements.dropdownBtnNetwork.parentElement as HTMLElement;
 
-        if (networkDropdownParent) networkDropdownParent.style.display = 'none';
         if (coinDropdownParent) coinDropdownParent.style.display = 'none';
+        if (networkDropdownParent) networkDropdownParent.style.display = 'none';
 
         this.elements.generateBtn.style.display = 'none';
     }
@@ -140,34 +130,19 @@ class SessionManager {
             arrow.style.transform = isOpen ? 'rotate(180deg)' : 'rotate(0deg)';
         };
 
-        this.elements.dropdownBtnNetwork.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const isHidden = this.elements.dropdownContentNetwork.classList.contains('hidden');
-            document.querySelectorAll('.dropdown-content').forEach(el => el.classList.add('hidden'));
-            toggleDropdown(this.elements.dropdownContentNetwork, this.elements.dropdownArrowNetwork, isHidden);
-        });
-
         this.elements.dropdownBtnCoin.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (this.elements.dropdownBtnCoin.disabled) return;
             const isHidden = this.elements.dropdownContentCoin.classList.contains('hidden');
             document.querySelectorAll('.dropdown-content').forEach(el => el.classList.add('hidden'));
             toggleDropdown(this.elements.dropdownContentCoin, this.elements.dropdownArrowCoin, isHidden);
         });
 
-        this.elements.dropdownContentNetwork.querySelectorAll('.dropdown-item').forEach(item => {
-            item.addEventListener('click', () => {
-                this.selectedNetwork = (item as HTMLElement).dataset.network || null;
-                this.elements.dropdownBtnNetwork.childNodes[0].textContent = item.textContent?.trim() || 'Choose Network';
-                toggleDropdown(this.elements.dropdownContentNetwork, this.elements.dropdownArrowNetwork, false);
-
-                // Активируем Coin dropdown
-                this.elements.dropdownBtnCoin.disabled = false;
-                this.elements.dropdownBtnCoin.style.opacity = '1';
-                this.elements.dropdownBtnCoin.style.cursor = 'pointer';
-
-                this.updatePayButton();
-            });
+        this.elements.dropdownBtnNetwork.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (this.elements.dropdownBtnNetwork.disabled) return;
+            const isHidden = this.elements.dropdownContentNetwork.classList.contains('hidden');
+            document.querySelectorAll('.dropdown-content').forEach(el => el.classList.add('hidden'));
+            toggleDropdown(this.elements.dropdownContentNetwork, this.elements.dropdownArrowNetwork, isHidden);
         });
 
         this.elements.dropdownContentCoin.querySelectorAll('.dropdown-item').forEach(item => {
@@ -175,6 +150,20 @@ class SessionManager {
                 this.selectedCoin = (item as HTMLElement).dataset.coin || null;
                 this.elements.dropdownBtnCoin.childNodes[0].textContent = item.textContent?.trim() || 'Choose Coin';
                 toggleDropdown(this.elements.dropdownContentCoin, this.elements.dropdownArrowCoin, false);
+
+                this.elements.dropdownBtnNetwork.disabled = false;
+                this.elements.dropdownBtnNetwork.style.opacity = '1';
+                this.elements.dropdownBtnNetwork.style.cursor = 'pointer';
+
+                this.updatePayButton();
+            });
+        });
+
+        this.elements.dropdownContentNetwork.querySelectorAll('.dropdown-item').forEach(item => {
+            item.addEventListener('click', () => {
+                this.selectedNetwork = (item as HTMLElement).dataset.network || null;
+                this.elements.dropdownBtnNetwork.childNodes[0].textContent = item.textContent?.trim() || 'Choose Network';
+                toggleDropdown(this.elements.dropdownContentNetwork, this.elements.dropdownArrowNetwork, false);
                 this.updatePayButton();
             });
         });
@@ -222,10 +211,8 @@ class SessionManager {
 
         const data = await response.json();
 
-        // Очищаем контейнер
         this.elements.qrcode.innerHTML = '';
 
-        // Создаем wrapper для QR
         const wrapper = document.createElement('div');
         wrapper.className = 'qr-code-wrapper';
 
@@ -237,16 +224,10 @@ class SessionManager {
 
         wrapper.appendChild(img);
 
-        // Создаем инфо блок
         const infoDiv = document.createElement('div');
         infoDiv.className = 'text-center mt-4';
-        infoDiv.innerHTML = `
-            <div class="text-22 font-bold text-white mb-1">${this.paymentData.amount_usd} USD</div>
-            ${this.paymentData.item_name ? `<div class="text-sm text-crypto-text-muted mb-2">${this.paymentData.item_name}</div>` : ''}
-            <div class="text-xs text-crypto-text-muted">Scan with Solana wallet</div>
-        `;
+        infoDiv.innerHTML = '<div class="text-xs text-crypto-text-muted">Scan with Solana wallet</div>';
 
-        // Добавляем все в контейнер
         this.elements.qrcode.appendChild(wrapper);
         this.elements.qrcode.appendChild(infoDiv);
         this.elements.qrcode.style.display = 'flex';
@@ -282,13 +263,13 @@ class SessionManager {
                     break;
                 case 'session_expired':
                 case 'session_invalid':
-                    this.showConnectionError();
+                    this.showError();
                     break;
             }
         };
 
         this.socket.onclose = (e) => {
-            if (e.code === 1008) this.showConnectionError();
+            if (e.code === 1008) this.showError();
         };
     }
 
@@ -296,6 +277,7 @@ class SessionManager {
         if (this.countdownTimer) clearInterval(this.countdownTimer);
 
         let remaining = seconds;
+
         const tick = () => {
             const mins = Math.floor(remaining / 60);
             const secs = remaining % 60;
@@ -306,7 +288,7 @@ class SessionManager {
                 : 'text-yellow-400 text-sm font-bold';
 
             if (remaining-- <= 0) {
-                this.showConnectionError();
+                this.showError();
             }
         };
 
@@ -314,18 +296,11 @@ class SessionManager {
         this.countdownTimer = setInterval(tick, 1000);
     }
 
-    private showConnectionError(): void {
+    private showError(): void {
         if (this.countdownTimer) clearInterval(this.countdownTimer);
         this.socket?.close();
 
-        // Скрываем ВСЕ элементы - только ошибка
-        document.body.innerHTML = `
-            <div class="min-h-screen flex items-center justify-center bg-[#0c0c0c]">
-                <div class="text-center">
-                    <div class="text-red-400 text-3xl font-bold mb-4">404 Not Found</div>
-                </div>
-            </div>
-        `;
+        document.body.innerHTML = '<div class="min-h-screen flex items-center justify-center bg-[#0c0c0c]"><div class="text-red-400 text-3xl font-bold">404</div></div>';
     }
 }
 
