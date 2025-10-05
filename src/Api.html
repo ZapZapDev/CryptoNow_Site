@@ -19,31 +19,172 @@
 
 <main class="pt-24 px-6 pb-8 min-h-screen">
     <div class="w-full max-w-7xl mx-auto">
-        <div class="w-full bg-[#0c0c0c] border-2 border-crypto-border rounded-2xl p-8 min-h-[75vh]">
+        <div class="w-full bg-[#0c0c0c] border-2 border-crypto-border rounded-2xl p-8 min-h-[75vh] relative">
+            <!-- Generate API Key Button -->
+            <div id="generateApiKeyContainer" class="absolute top-8 left-8">
+                <button id="generateApiKeyBtn"
+                        class="crypto-border text-white font-bold border-2 px-5 py-2 rounded-lg border-white hover:border-gray-300 hover:scale-95 transition duration-300 ease-in-out w-auto inline-flex items-center justify-center">
+                    Generate API Key
+                </button>
+            </div>
 
+            <!-- API Key Display (hidden by default) -->
+            <div id="apiKeyDisplay" class="absolute top-8 left-8 hidden">
+                <div class="flex items-center gap-2 bg-crypto-card p-3 rounded-lg border-2 border-crypto-border">
+                    <span id="apiKeyText" class="text-white text-sm font-mono break-all max-w-[300px]">
+                        <!-- API Key will be displayed here -->
+                    </span>
+                    <button id="copyApiKeyBtn"
+                            class="bg-crypto-card border border-crypto-border rounded-lg w-10 h-10 flex items-center justify-center hover:bg-crypto-border hover:scale-105 transition flex-shrink-0">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2m2-2h4a2 2 0 012 2v2a2 2 0 01-2 2H8a2 2 0 01-2-2V4a2 2 0 012-2z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </main>
 
 <!-- Scripts -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
 <script type="module" src="/typescript/ConnectWallet.ts"></script>
-<script type="module" src="/typescript/Merchant.ts"></script>
+
+<script type="module">
+    const API_BASE = 'https://zapzap666.xyz';
+
+    // Wait for wallet connection
+    function waitForWallet() {
+        return new Promise((resolve) => {
+            const check = () => {
+                const sessionKey = localStorage.getItem('sessionKey');
+                const wallet = localStorage.getItem('connectedWalletAddress');
+                if (sessionKey && wallet) {
+                    console.log('✅ Wallet connected:', wallet);
+                    resolve({ sessionKey, wallet });
+                } else {
+                    setTimeout(check, 500);
+                }
+            };
+            check();
+        });
+    }
+
+    // Generate API Key
+    async function generateApiKey() {
+        try {
+            const { sessionKey, wallet } = await waitForWallet();
+
+            const response = await fetch(`${API_BASE}/api/user/generate-api-key`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    walletAddress: wallet,
+                    sessionKey: sessionKey
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.apiKey) {
+                document.getElementById('generateApiKeyContainer').classList.add('hidden');
+                document.getElementById('apiKeyDisplay').classList.remove('hidden');
+                document.getElementById('apiKeyText').textContent = data.apiKey;
+                console.log('✅ API Key generated');
+            } else {
+                alert('Failed to generate API key: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('❌ Generate API key error:', error);
+            alert('Error generating API key. Please try again.');
+        }
+    }
+
+    // Copy API Key to clipboard
+    async function copyApiKey() {
+        const apiKeyText = document.getElementById('apiKeyText').textContent;
+        try {
+            await navigator.clipboard.writeText(apiKeyText);
+            showCopyNotification();
+        } catch (error) {
+            console.error('❌ Copy failed:', error);
+            fallbackCopy(apiKeyText);
+        }
+    }
+
+    function showCopyNotification() {
+        const btn = document.getElementById('copyApiKeyBtn');
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>';
+        setTimeout(() => {
+            btn.innerHTML = originalHTML;
+        }, 2000);
+    }
+
+    function fallbackCopy(text) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+            document.execCommand('copy');
+            showCopyNotification();
+        } catch (err) {
+            alert('Copy failed. Please copy manually: ' + text);
+        }
+        document.body.removeChild(textarea);
+    }
+
+    // Check if API key already exists (without creating)
+    async function checkExistingApiKey() {
+        try {
+            const { sessionKey, wallet } = await waitForWallet();
+
+            const response = await fetch(`${API_BASE}/api/user/api-key`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    walletAddress: wallet,
+                    sessionKey: sessionKey
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.exists && data.apiKey) {
+                document.getElementById('generateApiKeyContainer').classList.add('hidden');
+                document.getElementById('apiKeyDisplay').classList.remove('hidden');
+                document.getElementById('apiKeyText').textContent = data.apiKey;
+            }
+        } catch (error) {
+            console.error('❌ Check API key error:', error);
+        }
+    }
+
+    // Event Listeners
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('generateApiKeyBtn')?.addEventListener('click', generateApiKey);
+        document.getElementById('copyApiKeyBtn')?.addEventListener('click', copyApiKey);
+        
+        // Check for existing API key on load
+        checkExistingApiKey();
+    });
+</script>
 
 <script>
-    // Load header asynchronously with error handling
-    (function loadHeader() {
-        fetch('header')
-            .then(res => {
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                return res.text();
-            })
-            .then(html => {
-                const headerEl = document.getElementById('header');
-                if (headerEl) headerEl.innerHTML = html;
-            })
-            .catch(err => console.warn('Header load failed:', err.message));
-    })();
+    fetch('header')
+        .then(res => res.text())
+        .then(html => {
+            document.getElementById('header').innerHTML = html;
+        })
+        .catch(e => console.error('Header load error:', e));
 </script>
 
 </body>

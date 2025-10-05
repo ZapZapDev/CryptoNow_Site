@@ -1,13 +1,12 @@
 class SessionManager {
+    private readonly SERVER_URL = 'https://zapzap666.xyz';
+    private readonly WS_URL = 'wss://zapzap666.xyz';
     private sessionKey: string | null = null;
     private socket: WebSocket | null = null;
     private countdownTimer: number | null = null;
     private paymentData: any = null;
     private selectedNetwork: string | null = null;
     private selectedCoin: string | null = null;
-
-    private readonly SERVER_URL = 'https://zapzap666.xyz';
-    private readonly WS_URL = 'wss://zapzap666.xyz';
 
     private elements = {
         statusTitle: document.getElementById('statusTitle')!,
@@ -63,10 +62,14 @@ class SessionManager {
         const data = await response.json();
         if (!data.success) throw new Error(data.error);
 
-        const { uiState, qrId, payment, timeLeft } = data.data;
+        this.handleSessionUpdate(data.data);
+    }
 
-        this.elements.qrCodeId.textContent = qrId;
-        this.startCountdown(timeLeft);
+    private async handleSessionUpdate(sessionData: any): Promise<void> {
+        const { uiState, qrId, payment, timeLeft } = sessionData;
+
+        if (qrId) this.elements.qrCodeId.textContent = qrId;
+        if (typeof timeLeft === 'number') this.startCountdown(timeLeft);
 
         if (uiState === 'wait') {
             this.showWaitState();
@@ -132,17 +135,32 @@ class SessionManager {
 
         this.elements.dropdownBtnCoin.addEventListener('click', (e) => {
             e.stopPropagation();
-            const isHidden = this.elements.dropdownContentCoin.classList.contains('hidden');
+            const isCurrentlyOpen = !this.elements.dropdownContentCoin.classList.contains('hidden');
+            
             document.querySelectorAll('.dropdown-content').forEach(el => el.classList.add('hidden'));
-            toggleDropdown(this.elements.dropdownContentCoin, this.elements.dropdownArrowCoin, isHidden);
+            document.querySelectorAll('.dropdown span').forEach((arrow: Element) => {
+                (arrow as HTMLElement).style.transform = 'rotate(0deg)';
+            });
+            
+            if (!isCurrentlyOpen) {
+                toggleDropdown(this.elements.dropdownContentCoin, this.elements.dropdownArrowCoin, true);
+            }
         });
 
         this.elements.dropdownBtnNetwork.addEventListener('click', (e) => {
             e.stopPropagation();
             if (this.elements.dropdownBtnNetwork.disabled) return;
-            const isHidden = this.elements.dropdownContentNetwork.classList.contains('hidden');
+            
+            const isCurrentlyOpen = !this.elements.dropdownContentNetwork.classList.contains('hidden');
+            
             document.querySelectorAll('.dropdown-content').forEach(el => el.classList.add('hidden'));
-            toggleDropdown(this.elements.dropdownContentNetwork, this.elements.dropdownArrowNetwork, isHidden);
+            document.querySelectorAll('.dropdown span').forEach((arrow: Element) => {
+                (arrow as HTMLElement).style.transform = 'rotate(0deg)';
+            });
+            
+            if (!isCurrentlyOpen) {
+                toggleDropdown(this.elements.dropdownContentNetwork, this.elements.dropdownArrowNetwork, true);
+            }
         });
 
         this.elements.dropdownContentCoin.querySelectorAll('.dropdown-item').forEach(item => {
@@ -170,8 +188,17 @@ class SessionManager {
 
         this.elements.generateBtn.addEventListener('click', () => this.handlePayment());
 
-        window.addEventListener('click', () => {
-            document.querySelectorAll('.dropdown-content').forEach(el => el.classList.add('hidden'));
+        document.addEventListener('click', (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            
+            const isClickInsideDropdown = target.closest('.dropdown');
+            
+            if (!isClickInsideDropdown) {
+                document.querySelectorAll('.dropdown-content').forEach(el => el.classList.add('hidden'));
+                document.querySelectorAll('.dropdown span').forEach((arrow: Element) => {
+                    (arrow as HTMLElement).style.transform = 'rotate(0deg)';
+                });
+            }
         });
     }
 
@@ -251,6 +278,9 @@ class SessionManager {
             switch (data.type) {
                 case 'session_connected':
                     if (typeof data.timeLeft === 'number') this.startCountdown(data.timeLeft);
+                    break;
+                case 'session_status':
+                    this.handleSessionUpdate(data.data);
                     break;
                 case 'payment_created':
                     if (data.data && data.uiState === 'choose') {

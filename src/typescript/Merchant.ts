@@ -1,5 +1,3 @@
-// Merchant.ts
-
 /** ================== TYPES & INTERFACES ================== */
 interface BaseEntity { id?: number; createdAt: string; }
 interface QRCode extends BaseEntity { qrId: number; qrUniqueId: string; displayName?: string; }

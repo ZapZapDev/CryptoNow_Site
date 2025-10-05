@@ -1,4 +1,3 @@
-// src/typescript/ConnectWallet.ts - ИСПРАВЛЕНА ЛОГИКА БЛОКИРОВОК
 import { modal } from './ReownConfig';
 
 const SERVER_URL = "https://zapzap666.xyz";
