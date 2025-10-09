@@ -47,7 +47,6 @@ class MerchantAPI {
             if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
             return await res.json();
         } catch (e) {
-            console.error('API request failed', e);
             return { success: false, error: e instanceof Error ? e.message : 'Network error' };
         }
     }
@@ -209,73 +208,24 @@ class ModalManager {
 }
 
 /** ================== DROPDOWN MANAGEMENT ================== */
-class DropdownManager {
-    private static instance: DropdownManager; private openDropdown:HTMLElement|null=null;
-    static getInstance():DropdownManager{ return this.instance??=new DropdownManager(); }
-    init():void{
-        [{buttonId:'QRCodesButton',dropdownId:'QRCodesDropdown'}].forEach(cfg=>{
-            const btn=DOMUtils.getElement(cfg.buttonId), dd=DOMUtils.getElement(cfg.dropdownId);
-            if(btn&&dd){ btn.addEventListener('click', e=>{ e.stopPropagation(); this.toggle(dd,btn); }); }
-        });
-        document.addEventListener('click', ()=>this.closeAll());
-    }
-    private toggle(dropdown:HTMLElement, button:HTMLElement):void{
-        if(this.openDropdown&&this.openDropdown!==dropdown) this.close(this.openDropdown);
-        dropdown.classList.toggle('hidden'); this.openDropdown=dropdown.classList.contains('hidden')?null:dropdown;
-        const arrow=button.querySelector('svg'); if(arrow) arrow.classList.toggle('rotate-180');
-    }
-    private close(dropdown:HTMLElement):void{ dropdown.classList.add('hidden'); this.openDropdown=null; }
-    private closeAll():void{ if(this.openDropdown) this.close(this.openDropdown); }
+function setupDropdown(): void {
+    const button = DOMUtils.getElement('QRCodesButton');
+    const dropdown = DOMUtils.getElement('QRCodesDropdown');
+    if (!button || !dropdown) return;
+
+    button.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdown.classList.toggle('hidden');
+        button.querySelector('svg')?.classList.toggle('rotate-180');
+    });
+
+    document.addEventListener('click', () => {
+        dropdown.classList.add('hidden');
+        button.querySelector('svg')?.classList.remove('rotate-180');
+    });
 }
 
-/** ================== QR CODE MANAGEMENT ================== */
-class QRCodeManager {
-    private static instance:QRCodeManager;
-    static getInstance():QRCodeManager{ return this.instance??=new QRCodeManager(); }
 
-    async generateQRImage(qrUniqueId:string):Promise<void>{
-        const canvas=DOMUtils.getElement<HTMLCanvasElement>('qrCanvas');
-        if(!canvas){ console.error('Canvas not found'); return; }
-        if(typeof (window as any).QRCode==='undefined'){ console.error('QRCode lib missing'); return; }
-
-        try{
-            const qrUrl=`https://zapzap666.xyz/?qr=${qrUniqueId}`;
-            const ctx=canvas.getContext('2d'); if(ctx) ctx.clearRect(0,0,canvas.width,canvas.height);
-
-            const container=canvas.parentElement;
-            if(container){
-                const old=container.querySelector('.qr-code-temp'); if(old) old.remove();
-                const temp=document.createElement('div'); temp.className='qr-code-temp'; temp.style.display='none';
-                container.appendChild(temp);
-                new (window as any).QRCode(temp,{text:qrUrl,width:300,height:300,colorDark:'#000',colorLight:'#fff',correctLevel:(window as any).QRCode.CorrectLevel.M});
-                setTimeout(()=>{
-                    const img=temp.querySelector('img') as HTMLImageElement;
-                    if(img&&ctx){ img.onload=()=>{ canvas.width=300; canvas.height=300; ctx.drawImage(img,0,0,300,300); temp.remove(); }; if(img.complete) img.onload(null as any);}
-                },100);
-            }
-
-            const qrUniqueIdEl = DOMUtils.getElement('qrUniqueId'); if(qrUniqueIdEl) qrUniqueIdEl.textContent = qrUniqueId;
-            const qrCodeUrl = DOMUtils.getElement('qrCodeUrl');
-            if (qrCodeUrl) {
-                qrCodeUrl.innerHTML = `<a href="${qrUrl}" target="_blank" class="text-white text-sm break-all underline">${qrUrl}</a>`;
-            }
-
-        }catch(e){ console.error('QR generation failed',e); }
-    }
-
-    downloadQR():void{
-        const canvas=DOMUtils.getElement<HTMLCanvasElement>('qrCanvas'); if(!canvas) return;
-        const link=document.createElement('a'); link.download=`cryptonow-qr-${Date.now()}.png`; link.href=canvas.toDataURL('image/png',1.0);
-        document.body.appendChild(link); link.click(); document.body.removeChild(link);
-    }
-
-    async copyQRUrl():Promise<void>{
-        const el=DOMUtils.getElement('qrCodeUrl'); const url=el?.textContent;
-        if(!url||url===''){ alert('QR URL not available'); return; }
-        try{ await navigator.clipboard.writeText(url); }catch{ alert('Copy failed, copy manually: '+url); }
-    }
-
-}
 
 /** ================== MAIN MERCHANT SYSTEM ================== */
 class MerchantSystem {
@@ -287,11 +237,11 @@ class MerchantSystem {
 
     init():void{
         ModalManager.getInstance().init();
-        DropdownManager.getInstance().init();
+        setupDropdown();
         this.loadNetworks();
         DOMUtils.getElement('AddQRButton')?.addEventListener('click', ()=>this.openCreateModal('qrcode'));
-        DOMUtils.getElement('downloadQR')?.addEventListener('click', ()=>QRCodeManager.getInstance().downloadQR());
-        DOMUtils.getElement('copyQRUrl')?.addEventListener('click', ()=>QRCodeManager.getInstance().copyQRUrl());
+        DOMUtils.getElement('downloadQR')?.addEventListener('click', ()=>QRGenerator.getInstance().downloadQR('qrCanvas'));
+        DOMUtils.getElement('copyQRUrl')?.addEventListener('click', ()=>QRGenerator.getInstance().copyQRUrl());
     }
 
     private async loadNetworks():Promise<void>{
@@ -311,19 +261,17 @@ class MerchantSystem {
         this.state.currentNetworkId=network.id!;
         try{
             const qrRes=await MerchantAPI.qrcodes.list(network.id!);
-            // ✅ ИСПРАВЛЕНО: Используем displayName или fallback на "QR ID: {qrUniqueId}"
             this.renderEntityList('qrCodesList', qrRes.data||[], item=>this.openQRView(item), item=>item.displayName||`QR ID: ${item.qrUniqueId}`);
             const deleteCb = ()=>this.handleDelete('network', network.id!, ()=>ModalManager.getInstance().clear());
             ModalManager.getInstance().show('networkViewModal', network.name, deleteCb);
-        }catch(e){ console.error(e); alert('Failed to load network data'); }
+        }catch{ alert('Failed to load network data'); }
     }
 
     private async openQRView(qr:QRCode):Promise<void>{
         this.state.currentQRId=qr.qrId;
         const deleteCb = ()=>this.handleDelete('qrcode', qr.qrId, ()=>ModalManager.getInstance().goBack());
-        // ✅ ИСПРАВЛЕНО: Заголовок модала теперь использует qr_unique_id
         ModalManager.getInstance().show('qrViewModal', `QR ID: ${qr.qrUniqueId}`, deleteCb);
-        await QRCodeManager.getInstance().generateQRImage(qr.qrUniqueId);
+        await QRGenerator.getInstance().generateQRForScan(qr.qrUniqueId, 'qrCanvas');
     }
 
     private async saveNetwork():Promise<void>{
@@ -368,4 +316,6 @@ class MerchantSystem {
 }
 
 /** ================== INITIALIZATION ================== */
+import QRGenerator from './QRGenerator';
+
 document.addEventListener('DOMContentLoaded', ()=>{ MerchantSystem.getInstance().init(); });

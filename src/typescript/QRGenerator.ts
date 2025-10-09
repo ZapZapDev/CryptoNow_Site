@@ -16,7 +16,7 @@ class QRGenerator {
         return this.instance ??= new QRGenerator();
     }
 
-    /** Generate QR code with full CryptoNow URL for scanning */
+    /** Generate QR code for payment scanning */
     async generateQRForScan(qrUniqueId: string, canvasId: string = this.defaultCanvasId): Promise<void> {
         const canvas = this.getCanvas(canvasId);
         if (!canvas) return;
@@ -60,28 +60,9 @@ class QRGenerator {
                 if (qrImg.complete) qrImg.onload(null as any);
             }, 100);
 
-            console.log('✅ QR generated:', qrUniqueId);
             this.updateQRInfo(qrUniqueId, qrUrl);
-
         } catch (error) {
             this.handleError(canvas, 'Failed to generate QR code', error);
-        }
-    }
-
-    /** Generate QR with custom styling */
-    async generateStyledQR(qrUniqueId: string, canvasId: string, options: Partial<typeof this.qrOptions>): Promise<void> {
-        const canvas = this.getCanvas(canvasId);
-        if (!canvas) return;
-
-        const mergedOptions = { ...this.qrOptions, ...options };
-        const qrUrl = this.buildQRUrl(qrUniqueId);
-
-        try {
-            // @ts-ignore
-            await QRCode.toCanvas(canvas, qrUrl, mergedOptions);
-            this.updateQRInfo(qrUniqueId, qrUrl);
-        } catch (error) {
-            this.handleError(canvas, 'Failed to generate styled QR', error);
         }
     }
 
@@ -98,24 +79,8 @@ class QRGenerator {
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-
-            console.log('✅ QR downloaded:', link.download);
         } catch (error) {
             alert('Download failed. Please try again.');
-            console.error('❌ QR download failed:', error);
-        }
-    }
-
-    /** Get QR as base64 data URL */
-    getQRDataURL(canvasId: string = this.defaultCanvasId): string | null {
-        const canvas = this.getCanvas(canvasId);
-        if (!canvas) return null;
-
-        try {
-            return canvas.toDataURL('image/png', 1.0);
-        } catch (error) {
-            console.error('❌ Failed to get QR data URL:', error);
-            return null;
         }
     }
 
@@ -129,9 +94,7 @@ class QRGenerator {
 
         try {
             await navigator.clipboard.writeText(url);
-            this.showCopyNotification('QR URL copied to clipboard!');
-        } catch (error) {
-            console.error('❌ Copy failed:', error);
+        } catch {
             this.fallbackCopy(url);
         }
     }
@@ -142,9 +105,7 @@ class QRGenerator {
     }
 
     private getCanvas(canvasId: string): HTMLCanvasElement | null {
-        const canvas = document.getElementById(canvasId) as HTMLCanvasElement | null;
-        if (!canvas) console.error(`❌ Canvas "${canvasId}" not found`);
-        return canvas;
+        return document.getElementById(canvasId) as HTMLCanvasElement | null;
     }
 
     private updateQRInfo(qrUniqueId: string, qrUrl: string): void {
@@ -159,7 +120,6 @@ class QRGenerator {
     }
 
     private handleError(canvas: HTMLCanvasElement, message: string, error?: any): void {
-        console.error(`❌ ${message}`, error ?? '');
         this.showQRError(canvas, message);
     }
 
@@ -202,7 +162,6 @@ class QRGenerator {
 
         try {
             document.execCommand('copy');
-            this.showCopyNotification('QR URL copied to clipboard!');
         } catch {
             alert('Copy failed. Please copy manually: ' + text);
         }

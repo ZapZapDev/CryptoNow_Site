@@ -8,5 +8,5 @@ export function loadHeader(): void {
             const headerEl = document.getElementById('header');
             if (headerEl) headerEl.innerHTML = html;
         })
-        .catch(err => console.warn('Header load failed:', err.message));
+        .catch(() => {});
 }

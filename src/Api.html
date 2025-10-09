@@ -42,6 +42,41 @@
                     </button>
                 </div>
             </div>
+
+            <!-- Webhook URL Section -->
+            <div class="absolute top-24 left-8 w-[calc(100%-4rem)]">
+                <div class="flex flex-col gap-2">
+                    <label class="text-white text-sm font-semibold">Webhook URL</label>
+                    
+                    <!-- Input Mode -->
+                    <div id="webhookInputContainer" class="flex items-center gap-2">
+                        <input id="webhookInput" 
+                               type="text" 
+                               placeholder="https://your-domain.com/webhook"
+                               class="flex-1 bg-crypto-card text-white text-sm font-mono p-3 rounded-lg border-2 border-crypto-border focus:border-gray-500 outline-none"
+                               maxlength="512">
+                        <button id="saveWebhookBtn"
+                                class="bg-crypto-card border-2 border-gray-500 rounded-lg w-10 h-10 flex items-center justify-center hover:border-green-500 hover:scale-105 transition flex-shrink-0">
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path d="M5 13l4 4L19 7"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Saved Mode (hidden by default) -->
+                    <div id="webhookSavedContainer" class="flex items-center gap-2 hidden">
+                        <div class="flex-1 bg-crypto-card text-white text-sm font-mono p-3 rounded-lg border-2 border-crypto-border break-all">
+                            <span id="webhookText"></span>
+                        </div>
+                        <button id="editWebhookBtn"
+                                class="bg-crypto-card border border-crypto-border rounded-lg w-10 h-10 flex items-center justify-center hover:bg-crypto-border hover:scale-105 transition flex-shrink-0">
+                            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </main>
@@ -168,13 +203,149 @@
         }
     }
 
+    // ========== WEBHOOK URL FUNCTIONS ==========
+
+    // Load webhook URL on page load
+    async function loadWebhookUrl() {
+        try {
+            const { sessionKey, wallet } = await waitForWallet();
+
+            const response = await fetch(`${API_BASE}/api/user/api-key`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    walletAddress: wallet,
+                    sessionKey: sessionKey
+                })
+            });
+
+            const data = await response.json();
+
+            if (!data.success || !data.exists || !data.apiKey) {
+                return;
+            }
+
+            const webhookResponse = await fetch(`${API_BASE}/api/merchant/webhook`, {
+                method: 'GET',
+                headers: { 
+                    'X-API-Key': data.apiKey,
+                    'Accept': 'application/json'
+                }
+            });
+
+            const webhookData = await webhookResponse.json();
+
+            if (webhookData.success && webhookData.exists && webhookData.webhookUrl) {
+                showSavedWebhook(webhookData.webhookUrl);
+            }
+        } catch (error) {
+            console.error('❌ Load webhook URL error:', error);
+        }
+    }
+
+    // Save webhook URL
+    async function saveWebhookUrl() {
+        try {
+            const webhookUrl = document.getElementById('webhookInput').value.trim();
+
+            if (!webhookUrl) {
+                alert('Please enter a webhook URL');
+                return;
+            }
+
+            const { sessionKey, wallet } = await waitForWallet();
+
+            const response = await fetch(`${API_BASE}/api/user/api-key`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    walletAddress: wallet,
+                    sessionKey: sessionKey
+                })
+            });
+
+            const data = await response.json();
+
+            if (!data.success || !data.exists || !data.apiKey) {
+                alert('API key not found. Please generate API key first.');
+                return;
+            }
+
+            const saveResponse = await fetch(`${API_BASE}/api/merchant/webhook`, {
+                method: 'POST',
+                headers: { 
+                    'X-API-Key': data.apiKey,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ webhook_url: webhookUrl })
+            });
+
+            const saveData = await saveResponse.json();
+
+            if (saveData.success) {
+                showSavedWebhook(webhookUrl);
+                showSaveNotification();
+                console.log('✅ Webhook URL saved');
+            } else {
+                alert('Failed to save webhook URL: ' + (saveData.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('❌ Save webhook URL error:', error);
+            alert('Error saving webhook URL. Please try again.');
+        }
+    }
+
+    // Edit webhook URL
+    function editWebhookUrl() {
+        const currentUrl = document.getElementById('webhookText').textContent;
+        document.getElementById('webhookInput').value = currentUrl;
+        showInputWebhook();
+    }
+
+    // Show input mode
+    function showInputWebhook() {
+        document.getElementById('webhookInputContainer').classList.remove('hidden');
+        document.getElementById('webhookSavedContainer').classList.add('hidden');
+    }
+
+    // Show saved mode
+    function showSavedWebhook(url) {
+        document.getElementById('webhookText').textContent = url;
+        document.getElementById('webhookInputContainer').classList.add('hidden');
+        document.getElementById('webhookSavedContainer').classList.remove('hidden');
+    }
+
+    // Show save notification (green checkmark)
+    function showSaveNotification() {
+        const btn = document.getElementById('saveWebhookBtn');
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>';
+        btn.classList.remove('border-gray-500');
+        btn.classList.add('border-green-500');
+        setTimeout(() => {
+            btn.innerHTML = originalHTML;
+            btn.classList.remove('border-green-500');
+            btn.classList.add('border-gray-500');
+        }, 2000);
+    }
+
     // Event Listeners
     document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('generateApiKeyBtn')?.addEventListener('click', generateApiKey);
         document.getElementById('copyApiKeyBtn')?.addEventListener('click', copyApiKey);
+        document.getElementById('saveWebhookBtn')?.addEventListener('click', saveWebhookUrl);
+        document.getElementById('editWebhookBtn')?.addEventListener('click', editWebhookUrl);
         
-        // Check for existing API key on load
+        // Check for existing API key and webhook on load
         checkExistingApiKey();
+        loadWebhookUrl();
     });
 </script>
 

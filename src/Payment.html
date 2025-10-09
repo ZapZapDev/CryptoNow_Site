@@ -1,1 +1,143 @@
-<!DOCTYPE html><html lang="en"><head>    <meta charset="UTF-8">    <meta name="viewport" content="width=device-width, initial-scale=1">    <title>CryptoNow - Payment</title>    <link href="css/main.css" rel="stylesheet">    <link rel="preconnect" href="https://fonts.googleapis.com">    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;800&display=swap" rel="stylesheet">    <style>        body { font-family: 'Nunito', sans-serif; }    </style></head><body class="m-0 p-0 bg-[#0c0c0c] min-h-screen overflow-x-hidden font-system"><main class="min-h-screen flex items-center justify-center px-6 pt-24">    <div class="w-full max-w-lg mx-auto">        <div class="bg-crypto-card border-2 border-crypto-border rounded-2xl p-8 text-center flex flex-col gap-8">            <!-- Session Info Block -->            <div>                <h2 id="statusTitle" class="text-white text-2xl font-bold mb-6">Session Status</h2>                <div class="bg-crypto-dark border border-crypto-border rounded-lg p-4 space-y-2">                    <div class="flex items-center justify-between">                        <span class="text-crypto-text-muted text-sm">QR Code ID:</span>                        <span id="qrCodeId" class="text-white text-sm font-mono">Loading...</span>                    </div>                    <div class="flex items-center justify-between">                        <span class="text-crypto-text-muted text-sm">Expires in:</span>                        <span id="timeLeft" class="text-green-400 text-sm font-bold">--:--</span>                    </div>                    <div id="amountRow" class="hidden flex items-center justify-between">                        <span class="text-crypto-text-muted text-sm">Amount:</span>                        <span id="amountValue" class="text-white text-sm font-bold">--</span>                    </div>                </div>            </div>            <!-- Payment Controls -->            <div class="flex flex-col items-center gap-4 text-white">                <!-- Coin Dropdown (ТЕПЕРЬ СВЕРХУ) -->                <div class="dropdown relative inline-block w-full" style="display: none;">                    <button                            id="dropdownBtnCoin"                            class="bg-crypto-card text-white p-4 text-base font-semibold border-2 border-crypto-border                               rounded-2xl w-full text-left flex justify-between items-center cursor-pointer                               transition-all duration-200 hover:bg-crypto-border                               hover:border-crypto-border-hover focus:border-crypto-focus"                    >                        Choose Coin                        <span id="dropdownArrowCoin" class="text-sm transition-transform duration-300 text-crypto-text-muted">▼</span>                    </button>                    <div                            id="dropdownContentCoin"                            class="dropdown-content hidden absolute bg-crypto-card min-w-full shadow-crypto-lg                               rounded-2xl z-10 mt-2 left-0 overflow-hidden border-2 border-crypto-border"                    >                        <div                                class="dropdown-item flex items-center text-white p-4 text-base font-semibold cursor-pointer                                   transition-colors duration-200 hover:bg-crypto-border active:bg-crypto-border-hover"                                data-coin="SOL"                        >                            <div class="w-8 h-8 rounded-full mr-4 bg-gradient-to-br from-sol-gradient-from to-sol-gradient-to"></div>                            SOL                        </div>                        <div                                class="dropdown-item flex items-center text-white p-4 text-base font-semibold cursor-pointer                                   transition-colors duration-200 hover:bg-crypto-border active:bg-crypto-border-hover border-t border-[#2c2b2d4d]"                                data-coin="USDC"                        >                            <div class="w-8 h-8 rounded-full mr-4 bg-gradient-to-br from-usdc-gradient-from to-usdc-gradient-to"></div>                            USDC                        </div>                    </div>                </div>                <!-- Network Dropdown (ТЕПЕРЬ СНИЗУ) -->                <div class="dropdown relative inline-block w-full" style="display: none;">                    <button                            id="dropdownBtnNetwork"                            class="bg-crypto-card text-white p-4 text-base font-semibold border-2 border-crypto-border                               rounded-2xl w-full text-left flex justify-between items-center cursor-pointer                               transition-all duration-200 hover:bg-crypto-border                               hover:border-crypto-border-hover focus:border-crypto-focus"                            disabled                            style="opacity: 0.5; cursor: not-allowed;"                    >                        Choose Network                        <span id="dropdownArrowNetwork" class="text-sm transition-transform duration-300 text-crypto-text-muted">▼</span>                    </button>                    <div                            id="dropdownContentNetwork"                            class="dropdown-content hidden absolute bg-crypto-card min-w-full shadow-crypto-lg                               rounded-2xl z-10 mt-2 left-0 overflow-hidden border-2 border-crypto-border"                    >                        <div                                class="dropdown-item text-white p-4 text-base font-semibold cursor-pointer                                   transition-colors duration-200 hover:bg-crypto-border active:bg-crypto-border-hover"                                data-network="solana"                        >                            Solana                        </div>                    </div>                </div>                <!-- Pay Button -->                <button                        id="generateBtn"                        class="bg-crypto-dark text-white py-3 px-6 rounded-2xl text-base font-semibold                           cursor-pointer shadow-crypto transition-all duration-200 hover:bg-crypto-border w-full"                        disabled                        style="display: none; opacity: 0.5; cursor: not-allowed;"                >                    Pay Now                </button>                <!-- QR Code Section -->                <div                        id="qrcode"                        class="qrcode-container hidden relative flex-col justify-center items-center my-6 min-h-64                           rounded-2xl bg-crypto-card border-2 border-crypto-border p-5 w-full"                >                    <div                            id="paymentInfo"                            class="payment-info text-center w-full"                    ></div>                </div>            </div>        </div>    </div></main><script type="module" src="/typescript/SessionManager.ts"></script></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CryptoNow - Payment</title>
+    <link href="css/main.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Nunito', sans-serif; }
+    </style>
+</head>
+<body class="m-0 p-0 bg-[#0c0c0c] min-h-screen overflow-x-hidden font-system">
+<main class="min-h-screen flex items-center justify-center px-6">
+    <div class="w-full max-w-lg mx-auto">
+        <div class="bg-crypto-card border-2 border-crypto-border rounded-2xl p-8 text-center flex flex-col gap-8">
+            <!-- Session Info Block -->
+            <div>
+                <div class="flex justify-between items-center mb-6">
+                    <h2 id="statusTitle" class="text-white text-2xl font-bold">Session Status</h2>
+                    <button id="paymentWalletButton"
+                            class="hidden crypto-border text-white font-bold border-2 px-4 py-2 rounded-lg border-white hover:border-gray-300 hover:scale-95 transition duration-300 ease-in-out text-sm">
+                        Connect Wallet
+                    </button>
+                </div>
+                <div class="bg-crypto-dark border border-crypto-border rounded-lg p-4 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-crypto-text-muted text-sm">QR Code ID:</span>
+                        <span id="qrCodeId" class="text-white text-sm font-mono">Loading...</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-crypto-text-muted text-sm">Expires in:</span>
+                        <span id="timeLeft" class="text-green-400 text-sm font-bold">--:--</span>
+                    </div>
+                    <div id="amountRow" class="hidden flex items-center justify-between">
+                        <span class="text-crypto-text-muted text-sm">Amount:</span>
+                        <span id="amountValue" class="text-white text-sm font-bold">--</span>
+                    </div>
+                </div>
+            </div>
+            <!-- Payment Controls -->
+            <div class="flex flex-col items-center gap-4 text-white">
+                <!-- Coin Dropdown -->
+                <div class="dropdown relative inline-block w-full" style="display: none;">
+                    <button
+                            id="dropdownBtnCoin"
+                            class="bg-crypto-card text-white p-4 text-base font-semibold border-2 border-crypto-border
+                               rounded-2xl w-full text-left flex justify-between items-center cursor-pointer
+                               transition-all duration-200 hover:bg-crypto-border
+                               hover:border-crypto-border-hover focus:border-crypto-focus"
+                    >
+                        Choose Coin
+                        <span id="dropdownArrowCoin" class="text-sm transition-transform duration-300 text-crypto-text-muted">▼</span>
+                    </button>
+                    <div
+                            id="dropdownContentCoin"
+                            class="dropdown-content hidden absolute bg-crypto-card min-w-full shadow-crypto-lg
+                               rounded-2xl z-10 mt-2 left-0 overflow-hidden border-2 border-crypto-border"
+                    >
+                        <div
+                                class="dropdown-item flex items-center text-white p-4 text-base font-semibold cursor-pointer
+                                   transition-colors duration-200 hover:bg-crypto-border active:bg-crypto-border-hover"
+                                data-coin="SOL"
+                        >
+                            <div class="w-8 h-8 rounded-full mr-4 bg-gradient-to-br from-sol-gradient-from to-sol-gradient-to"></div>
+                            SOL
+                        </div>
+                        <div
+                                class="dropdown-item flex items-center text-white p-4 text-base font-semibold cursor-pointer
+                                   transition-colors duration-200 hover:bg-crypto-border active:bg-crypto-border-hover border-t border-[#2c2b2d4d]"
+                                data-coin="USDC"
+                        >
+                            <div class="w-8 h-8 rounded-full mr-4 bg-gradient-to-br from-usdc-gradient-from to-usdc-gradient-to"></div>
+                            USDC
+                        </div>
+                    </div>
+                </div>
+                <!-- Network Dropdown -->
+                <div class="dropdown relative inline-block w-full" style="display: none;">
+                    <button
+                            id="dropdownBtnNetwork"
+                            class="bg-crypto-card text-white p-4 text-base font-semibold border-2 border-crypto-border
+                               rounded-2xl w-full text-left flex justify-between items-center cursor-pointer
+                               transition-all duration-200 hover:bg-crypto-border
+                               hover:border-crypto-border-hover focus:border-crypto-focus"
+                            disabled
+                            style="opacity: 0.5; cursor: not-allowed;"
+                    >
+                        Choose Network
+                        <span id="dropdownArrowNetwork" class="text-sm transition-transform duration-300 text-crypto-text-muted">▼</span>
+                    </button>
+                    <div
+                            id="dropdownContentNetwork"
+                            class="dropdown-content hidden absolute bg-crypto-card min-w-full shadow-crypto-lg
+                               rounded-2xl z-10 mt-2 left-0 overflow-hidden border-2 border-crypto-border"
+                    >
+                        <div
+                                class="dropdown-item text-white p-4 text-base font-semibold cursor-pointer
+                                   transition-colors duration-200 hover:bg-crypto-border active:bg-crypto-border-hover"
+                                data-network="solana"
+                        >
+                            Solana
+                        </div>
+                    </div>
+                </div>
+                <!-- Pay Button -->
+                <button
+                        id="generateBtn"
+                        class="bg-crypto-dark text-white py-3 px-6 rounded-2xl text-base font-semibold
+                           cursor-pointer shadow-crypto transition-all duration-200 hover:bg-crypto-border w-full"
+                        disabled
+                        style="display: none; opacity: 0.5; cursor: not-allowed;"
+                >
+                    Pay Now
+                </button>
+                <!-- QR Code Section -->
+                <div
+                        id="qrcode"
+                        class="qrcode-container hidden relative flex-col justify-center items-center my-6 min-h-64
+                           rounded-2xl bg-crypto-card border-2 border-crypto-border p-5 w-full"
+                >
+                    <div
+                            id="paymentInfo"
+                            class="payment-info text-center w-full"
+                    ></div>
+                </div>
+                <!-- Pay with Wallet Button -->
+                <button
+                        id="payWithWalletBtn"
+                        class="hidden bg-crypto-dark text-white py-3 px-6 rounded-2xl text-base font-semibold
+                           cursor-pointer shadow-crypto transition-all duration-200 hover:bg-crypto-border w-full"
+                >
+                    Pay with Wallet
+                </button>
+            </div>
+        </div>
+    </div>
+</main>
+<script type="module" src="/typescript/SessionManager.ts"></script>
+</body>
+</html>

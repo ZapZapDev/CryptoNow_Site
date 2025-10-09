@@ -1,6 +1,8 @@
 import { modal } from './ReownConfig';
+import { CONFIG } from './config';
+import { WalletUI } from './WalletUI';
 
-const SERVER_URL = "https://zapzap666.xyz";
+const SERVER_URL = CONFIG.SERVER_URL;
 
 const walletButtonDesktop = document.getElementById("walletButtonDesktop") as HTMLButtonElement;
 const walletButtonMobile = document.getElementById("walletButtonMobile") as HTMLButtonElement;
@@ -10,61 +12,36 @@ let currentSessionKey: string | null = null;
 let arrowIcon: SVGElement | null = null;
 let walletDropdown: HTMLDivElement | null = null;
 
-// ЗАЩИТА ОТ ДУБЛИРОВАНИЯ ЗАПРОСОВ
 let isConnecting = false;
 let isDisconnecting = false;
-let loginPromise: Promise<string | null> | null = null; // Храним promise для переиспользования
+let loginPromise: Promise<string | null> | null = null;
 
-function shortenAddress(addr: string): string {
-    return addr.slice(0, 6) + "..." + addr.slice(-4);
-}
-
-function updateWalletButton(address: string): void {
-    const shortAddr = shortenAddress(address);
-
+const updateWalletButton = (address: string): void => {
     if (walletButtonDesktop) {
-        walletButtonDesktop.innerHTML = `
-            ${shortAddr}
-            <svg id="walletArrow" class="w-5 h-5 ml-2 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
-                <path d="M6 9l6 6 6-6"/>
-            </svg>
-        `;
-    }
-
-    if (walletButtonMobile) {
-        walletButtonMobile.textContent = `${shortAddr} ▼`;
-    }
-}
-
-function resetWalletButton(): void {
-    if (walletButtonDesktop) {
-        walletButtonDesktop.textContent = "Connect Wallet";
+        WalletUI.updateButton(walletButtonDesktop, address, true);
+        arrowIcon = document.getElementById("walletArrow") as SVGElement;
     }
     if (walletButtonMobile) {
-        walletButtonMobile.textContent = "Connect Wallet";
+        WalletUI.updateButton(walletButtonMobile, address, false);
     }
-    setArrow(false);
-}
+};
 
-function setArrow(up: boolean): void {
-    if (arrowIcon) {
-        arrowIcon.style.transform = up ? "rotate(180deg)" : "rotate(0deg)";
-    }
-}
+const resetWalletButton = (): void => {
+    if (walletButtonDesktop) WalletUI.resetButton(walletButtonDesktop);
+    if (walletButtonMobile) WalletUI.resetButton(walletButtonMobile);
+    WalletUI.setArrow(arrowIcon, false);
+};
 
 async function loginToServer(walletAddress: string): Promise<string | null> {
     // УЛУЧШЕННАЯ ЛОГИКА: если логин уже идет, ждем его завершения
     if (isConnecting && loginPromise) {
-        console.log('Login already in progress, waiting for result...');
         return await loginPromise;
     }
 
     isConnecting = true;
 
-    // Создаем promise и сохраняем для переиспользования
     loginPromise = (async () => {
         try {
-            console.log('Logging in to server:', walletAddress);
 
             const res = await fetch(`${SERVER_URL}/api/auth/login`, {
                 method: "POST",
@@ -75,23 +52,12 @@ async function loginToServer(walletAddress: string): Promise<string | null> {
                 body: JSON.stringify({ walletAddress })
             });
 
-            if (!res.ok) {
-                console.error('Server login failed:', res.status);
-                return null;
-            }
+            if (!res.ok) return null;
 
             const data = await res.json();
-            console.log('Login successful:', data);
+            return (data.success && data.sessionKey) ? data.sessionKey : null;
 
-            if (data.success && data.sessionKey) {
-                return data.sessionKey;
-            } else {
-                console.error('Invalid response structure:', data);
-                return null;
-            }
-
-        } catch (error) {
-            console.error('Login error:', error);
+        } catch {
             return null;
         } finally {
             isConnecting = false;
@@ -117,34 +83,22 @@ async function validateServerSession(walletAddress: string, sessionKey: string):
 
         const data = await res.json();
         return !!data.success;
-
-    } catch (error) {
-        console.error('Validate error:', error);
+    } catch {
         return false;
     }
 }
 
 async function logoutFromServer(walletAddress: string): Promise<void> {
-    // ЗАЩИТА: предотвращение параллельных логаутов
-    if (isDisconnecting) {
-        console.log('Logout already in progress, skipping');
-        return;
-    }
+    if (isDisconnecting) return;
 
     isDisconnecting = true;
 
     try {
         await fetch(`${SERVER_URL}/api/auth/logout`, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Accept": "application/json"
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ walletAddress })
         });
-        console.log('Logged out from server');
-    } catch (error) {
-        console.error('Logout error:', error);
     } finally {
         isDisconnecting = false;
     }
@@ -152,30 +106,19 @@ async function logoutFromServer(walletAddress: string): Promise<void> {
 
 async function openReownModal(): Promise<void> {
     try {
-        console.log('Opening Reown modal...');
         await modal.open();
-        console.log('Modal opened');
-    } catch (error) {
-        console.error('Failed to open modal:', error);
+    } catch {
         alert('Failed to open wallet connection');
     }
 }
 
 async function onWalletConnected(address: string): Promise<void> {
-    // ЗАЩИТА: пропускаем если уже подключен к этому кошельку
-    if (currentWalletAddress === address) {
-        console.log('Already connected to this wallet, skipping');
-        return;
-    }
-
-    console.log('Wallet connected, authenticating...', address);
+    if (currentWalletAddress === address) return;
 
     try {
-        // Ждем логин (если несколько событий, все получат один и тот же результат)
         const sessionKey = await loginToServer(address);
 
         if (!sessionKey) {
-            console.error('Authentication failed - no session key received');
             await modal.disconnect();
             alert('Failed to authenticate with server');
             return;
@@ -189,22 +132,14 @@ async function onWalletConnected(address: string): Promise<void> {
         localStorage.setItem("sessionKey", sessionKey);
 
         updateWalletButton(address);
-
-        console.log('Successfully authenticated and connected');
-
-    } catch (error) {
-        console.error('Connection error:', error);
+    } catch {
         await modal.disconnect();
         alert('Failed to connect wallet');
     }
 }
 
 async function handleWalletDisconnect(): Promise<void> {
-    console.log('Disconnecting wallet...');
-
-    if (currentWalletAddress) {
-        await logoutFromServer(currentWalletAddress);
-    }
+    if (currentWalletAddress) await logoutFromServer(currentWalletAddress);
 
     currentWalletAddress = null;
     currentSessionKey = null;
@@ -217,20 +152,11 @@ async function handleWalletDisconnect(): Promise<void> {
 let isSubscribed = false;
 
 function setupReownListeners(): void {
-    // ЗАЩИТА: подписываемся только один раз
-    if (isSubscribed) {
-        console.log('Reown listeners already set up, skipping');
-        return;
-    }
+    if (isSubscribed) return;
 
-    console.log('Setting up Reown listeners...');
-
-    modal.subscribeState((state) => {
-        console.log('Modal state changed:', state);
-    });
+    modal.subscribeState(() => {});
 
     modal.subscribeAccount((account) => {
-        console.log('Account changed:', account);
 
         if (account && account.address) {
             const address = account.address;
@@ -252,18 +178,12 @@ async function autoConnect(): Promise<void> {
     const savedAddress = localStorage.getItem("connectedWalletAddress");
     const savedSessionKey = localStorage.getItem("sessionKey");
 
-    if (!savedAddress || !savedSessionKey) {
-        console.log('No saved session found');
-        return;
-    }
-
-    console.log('Attempting auto-connect...');
+    if (!savedAddress || !savedSessionKey) return;
 
     try {
         const isValid = await validateServerSession(savedAddress, savedSessionKey);
 
         if (!isValid) {
-            console.log('Saved session is invalid');
             localStorage.clear();
             return;
         }
@@ -274,14 +194,10 @@ async function autoConnect(): Promise<void> {
             currentWalletAddress = savedAddress;
             currentSessionKey = savedSessionKey;
             updateWalletButton(savedAddress);
-            console.log('Auto-connected successfully');
         } else {
-            console.log('Reown not connected, clearing session');
             localStorage.clear();
         }
-
-    } catch (error) {
-        console.error('Auto-connect failed:', error);
+    } catch {
         localStorage.clear();
     }
 }
@@ -289,39 +205,26 @@ async function autoConnect(): Promise<void> {
 function setupDropdown(): void {
     if (!walletButtonDesktop) return;
 
-    walletDropdown = document.createElement("div");
+    walletDropdown = WalletUI.createDropdown();
     walletDropdown.id = "walletDropdown";
-    walletDropdown.className = "absolute bg-crypto-card border-2 border-crypto-border rounded-lg w-44 hidden shadow-lg z-50";
-
-    walletDropdown.innerHTML = `
-        <button id="logoutButton" class="w-full text-left px-4 py-2 text-red-500 font-medium hover:bg-crypto-border flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path d="M17 16l4-4m0 0l-4-4m4 4H7"/>
-            </svg>
-            Logout
-        </button>
-    `;
-
     document.body.appendChild(walletDropdown);
 
     const positionDropdown = (): void => {
         if (!walletDropdown || !walletButtonDesktop) return;
-        const rect = walletButtonDesktop.getBoundingClientRect();
-        walletDropdown.style.top = `${rect.bottom + window.scrollY}px`;
-        walletDropdown.style.left = `${rect.left + window.scrollX}px`;
+        WalletUI.positionDropdown(walletDropdown, walletButtonDesktop);
     };
 
     const showDropdown = (): void => {
         if (!currentWalletAddress || !walletDropdown) return;
         positionDropdown();
         walletDropdown.classList.remove("hidden");
-        setArrow(true);
+        WalletUI.setArrow(arrowIcon, true);
     };
 
     const hideDropdown = (): void => {
         if (!walletDropdown) return;
         walletDropdown.classList.add("hidden");
-        setArrow(false);
+        WalletUI.setArrow(arrowIcon, false);
     };
 
     const logoutBtn = walletDropdown.querySelector<HTMLButtonElement>("#logoutButton");
@@ -337,28 +240,16 @@ function setupDropdown(): void {
 }
 
 function setupEventListeners(): void {
-    console.log('Setting up button listeners...');
-
     walletButtonDesktop?.addEventListener("click", async (e) => {
         e.preventDefault();
         e.stopPropagation();
-
-        console.log('Desktop button clicked');
-
-        if (!currentWalletAddress) {
-            await openReownModal();
-        }
+        if (!currentWalletAddress) await openReownModal();
     });
 
     walletButtonMobile?.addEventListener("click", async (e) => {
         e.preventDefault();
         e.stopPropagation();
-
-        console.log('Mobile button clicked');
-
-        if (!currentWalletAddress) {
-            await openReownModal();
-        }
+        if (!currentWalletAddress) await openReownModal();
     });
 
     document.addEventListener("visibilitychange", async () => {
@@ -377,15 +268,10 @@ function setupEventListeners(): void {
 }
 
 window.addEventListener("load", async () => {
-    console.log('Initializing Reown wallet system...');
-
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     setupReownListeners();
     setupDropdown();
     setupEventListeners();
-
     await autoConnect();
-
-    console.log('Wallet system ready');
 });
