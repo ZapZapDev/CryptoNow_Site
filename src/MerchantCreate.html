@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Create Merchant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="/css/main.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+</head>
+
+<style>
+    body { font-family: 'Nunito', sans-serif; }
+    
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus,
+    input:-webkit-autofill:active {
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: white;
+        transition: background-color 5000s ease-in-out 0s;
+        box-shadow: inset 0 0 20px 20px #1a1a1a;
+        border: 2px solid #2a2a2a !important;
+    }
+    
+    input:-webkit-autofill:hover {
+        border: 2px solid #2a2a2a !important;
+    }
+    
+    input:-webkit-autofill:focus {
+        border: 2px solid #4a9eff !important;
+    }
+</style>
+
+<body class="m-0 p-0 bg-[#0c0c0c] min-h-screen overflow-x-hidden">
+<div id="header" class="fixed top-0 left-0 w-full z-50"></div>
+
+<main class="pt-24 px-6 pb-8 min-h-screen">
+    <div class="w-full max-w-3xl mx-auto">
+        <div class="bg-[#0c0c0c] border-2 border-crypto-border rounded-2xl p-8">
+            <h1 class="text-white text-3xl font-bold mb-8 text-center">Create New Merchant</h1>
+            
+            <form id="merchantForm" class="space-y-6">
+                <div>
+                    <label class="block text-crypto-text-muted text-sm font-semibold mb-2">Name *</label>
+                    <input type="text" id="merchantName" placeholder="Enter merchant name..." 
+                           class="w-full p-3 rounded-xl border-2 border-crypto-border bg-crypto-card text-white placeholder:text-crypto-text-muted focus:border-crypto-focus outline-none" required>
+                </div>
+
+                <div>
+                    <label class="block text-crypto-text-muted text-sm font-semibold mb-2">Webhook URL *</label>
+                    <input type="url" id="webhookUrl" placeholder="https://your-domain.com/webhook" 
+                           class="w-full p-3 rounded-xl border-2 border-crypto-border bg-crypto-card text-white placeholder:text-crypto-text-muted focus:border-crypto-focus outline-none" required>
+                </div>
+
+                <div>
+                    <label class="block text-crypto-text-muted text-sm font-semibold mb-2">Solana Wallet *</label>
+                    <input type="text" id="solanaWallet" placeholder="Enter 44-character Solana wallet address" 
+                           maxlength="44" minlength="44"
+                           class="w-full p-3 rounded-xl border-2 border-crypto-border bg-crypto-card text-white placeholder:text-crypto-text-muted focus:border-crypto-focus outline-none font-mono" required>
+                </div>
+
+                <div class="relative">
+                    <label class="block text-crypto-text-muted text-sm font-semibold mb-2">QR Codes</label>
+                    <button type="button" id="QRCodesButton" 
+                            class="crypto-border text-white font-bold border-2 px-5 py-2 rounded-lg border-white hover:border-gray-300 hover:scale-95 transition duration-300 ease-in-out inline-flex items-center">
+                        QR Codes
+                        <svg class="w-5 h-5 ml-2 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                            <path d="M6 9l6 6 6-6"/>
+                        </svg>
+                    </button>
+                    <div id="QRCodesDropdown" class="absolute hidden mt-2 bg-crypto-card border border-crypto-border rounded-lg min-w-max shadow-lg z-50">
+                        <button type="button" id="AddQRButton" 
+                                class="w-full text-left px-4 py-2 font-medium hover:bg-crypto-border transition flex items-center gap-2 text-crypto-text-muted whitespace-nowrap">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path d="M12 6v12M6 12h12"/>
+                            </svg>
+                            Add QR Code
+                        </button>
+                        <div id="qrCodesList" class="p-2 text-sm text-white"></div>
+                    </div>
+                </div>
+
+                <div class="flex justify-center pt-6">
+                    <button type="submit" 
+                            class="crypto-border text-white font-bold border-2 border-white px-8 py-3 rounded-xl hover:border-gray-300 hover:scale-95 transition duration-300 ease-in-out">
+                        Submit
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</main>
+
+<div id="qrModal" class="fixed top-0 right-0 bottom-0 left-0 hidden flex items-center justify-center z-[60]">
+    <div class="absolute top-0 right-0 bottom-0 left-0 bg-black/30 backdrop-blur-sm" id="qrModalBackdrop"></div>
+    <div class="relative bg-[#0c0c0c] border-2 border-crypto-border rounded-2xl w-[90%] max-w-md">
+        <button id="qrModalClose" class="absolute top-4 right-4 bg-[#0c0c0c] border border-crypto-border rounded-lg w-10 h-10 flex items-center justify-center hover:bg-crypto-border hover:scale-105 transition z-10">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-crypto-text-muted">
+                <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+        </button>
+        <div class="p-8">
+            <h2 class="text-white text-2xl font-bold mb-6 text-center">Create QR Codes</h2>
+            <form id="qrForm" class="space-y-4">
+                <div>
+                    <label class="block text-crypto-text-muted text-sm font-semibold mb-2">Quantity *</label>
+                    <input type="number" id="qrQuantity" min="1" max="50" placeholder="How many QR codes?" 
+                           class="w-full p-3 rounded-xl border-2 border-crypto-border bg-crypto-card text-white placeholder:text-crypto-text-muted focus:border-crypto-focus outline-none" required>
+                    <p class="text-crypto-text-muted text-xs mt-1">Create 1-50 QR codes at once</p>
+                </div>
+                <div class="flex justify-center pt-4">
+                    <button type="submit" class="crypto-border text-white font-bold border-2 border-white px-6 py-3 rounded-xl hover:border-gray-300 hover:scale-95 transition duration-300 ease-in-out w-1/2">
+                        Create
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script type="module" src="/typescript/ConnectWallet.ts"></script>
+<script type="module" src="/typescript/MerchantCreate.ts"></script>
+
+<script>
+    fetch('/header')
+        .then(res => res.text())
+        .then(html => {
+            document.getElementById('header').innerHTML = html;
+        })
+        .catch(e => console.error('Header load error:', e));
+</script>
+</body>
+</html>
