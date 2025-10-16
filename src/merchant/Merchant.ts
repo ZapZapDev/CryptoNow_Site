@@ -1,11 +1,10 @@
-const CONFIG = {
-    SERVER_URL: 'https://zapzap666.xyz',
-    API_ENDPOINTS: {
-        list: '/api/merchant/list',
-        details: '/api/merchant/:id/details',
-        delete: '/api/merchant/:id',
-        toggleStatus: '/api/merchant/:id/toggle-status'
-    }
+import { CONFIG, getAuth } from '../typescript/config';
+
+const API_ENDPOINTS = {
+    list: '/api/merchant/list',
+    details: '/api/merchant/:id/details',
+    delete: '/api/merchant/:id',
+    toggleStatus: '/api/merchant/:id/toggle-status'
 } as const;
 
 interface Merchant {
@@ -39,11 +38,11 @@ class MerchantSystem {
 
 
     private async loadMerchants(): Promise<void> {
-        const auth = this.getAuth();
+        const auth = getAuth();
         if (!auth) return;
 
         try {
-            const response = await fetch(`${CONFIG.SERVER_URL}${CONFIG.API_ENDPOINTS.list}`, {
+            const response = await fetch(`${CONFIG.SERVER_URL}${API_ENDPOINTS.list}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(auth)
@@ -157,11 +156,11 @@ class MerchantSystem {
     }
 
     private async copyApiKey(merchantId: number): Promise<void> {
-        const auth = this.getAuth();
+        const auth = getAuth();
         if (!auth) return;
 
         try {
-            const response = await fetch(`${CONFIG.SERVER_URL}${CONFIG.API_ENDPOINTS.details.replace(':id', merchantId.toString())}`, {
+            const response = await fetch(`${CONFIG.SERVER_URL}${API_ENDPOINTS.details.replace(':id', merchantId.toString())}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(auth)
@@ -186,11 +185,11 @@ class MerchantSystem {
     }
 
     private async toggleStatus(merchantId: number): Promise<void> {
-        const auth = this.getAuth();
+        const auth = getAuth();
         if (!auth) return;
 
         try {
-            const response = await fetch(`${CONFIG.SERVER_URL}${CONFIG.API_ENDPOINTS.toggleStatus.replace(':id', merchantId.toString())}`, {
+            const response = await fetch(`${CONFIG.SERVER_URL}${API_ENDPOINTS.toggleStatus.replace(':id', merchantId.toString())}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(auth)
@@ -209,12 +208,6 @@ class MerchantSystem {
         }
     }
 
-    private getAuth() {
-        const walletAddress = localStorage.getItem('connectedWalletAddress');
-        const sessionKey = localStorage.getItem('sessionKey');
-        if (!walletAddress || !sessionKey) return null;
-        return { walletAddress, sessionKey };
-    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {

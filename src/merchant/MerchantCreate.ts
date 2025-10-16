@@ -1,12 +1,11 @@
-const CONFIG = {
-    SERVER_URL: 'https://zapzap666.xyz',
-    API_ENDPOINTS: {
-        create: '/api/merchant/create',
-        details: '/api/merchant/:id/details',
-        update: '/api/merchant/:id',
-        qrCreate: '/api/merchant/:merchantId/qr-codes',
-        qrList: '/api/merchant/:merchantId/qr-codes/list'
-    }
+import { CONFIG, getAuth } from '../typescript/config';
+
+const API_ENDPOINTS = {
+    create: '/api/merchant/create',
+    details: '/api/merchant/:id/details',
+    update: '/api/merchant/:id',
+    qrCreate: '/api/merchant/:merchantId/qr-codes',
+    qrList: '/api/merchant/:merchantId/qr-codes/list'
 } as const;
 
 interface QRCodeTemp {
@@ -60,20 +59,19 @@ class MerchantCreateSystem {
     }
 
     private async loadMerchantData(): Promise<void> {
-        const walletAddress = localStorage.getItem('connectedWalletAddress');
-        const sessionKey = localStorage.getItem('sessionKey');
+        const auth = getAuth();
         
-        if (!walletAddress || !sessionKey) {
+        if (!auth) {
             this.showError('Authentication required');
             setTimeout(() => window.location.href = '/', 2000);
             return;
         }
 
         try {
-            const response = await fetch(`${CONFIG.SERVER_URL}${CONFIG.API_ENDPOINTS.details.replace(':id', this.merchantUUID!)}`, {
+            const response = await fetch(`${CONFIG.SERVER_URL}${API_ENDPOINTS.details.replace(':id', this.merchantUUID!)}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ walletAddress, sessionKey })
+                body: JSON.stringify(auth)
             });
 
             const data = await response.json();
@@ -101,16 +99,15 @@ class MerchantCreateSystem {
     }
 
     private async loadExistingQRCodes(merchantId: number): Promise<void> {
-        const walletAddress = localStorage.getItem('connectedWalletAddress');
-        const sessionKey = localStorage.getItem('sessionKey');
+        const auth = getAuth();
         
-        if (!walletAddress || !sessionKey) return;
+        if (!auth) return;
 
         try {
-            const response = await fetch(`${CONFIG.SERVER_URL}${CONFIG.API_ENDPOINTS.qrList.replace(':merchantId', merchantId.toString())}`, {
+            const response = await fetch(`${CONFIG.SERVER_URL}${API_ENDPOINTS.qrList.replace(':merchantId', merchantId.toString())}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ walletAddress, sessionKey })
+                body: JSON.stringify(auth)
             });
 
             const data = await response.json();
@@ -217,28 +214,26 @@ class MerchantCreateSystem {
         if (!quantity || quantity < 1 || quantity > 50) return;
 
         if (this.isEditMode && this.merchantUUID) {
-            const walletAddress = localStorage.getItem('connectedWalletAddress');
-            const sessionKey = localStorage.getItem('sessionKey');
+            const auth = getAuth();
             
-            if (!walletAddress || !sessionKey) return;
+            if (!auth) return;
 
             try {
-                const response = await fetch(`${CONFIG.SERVER_URL}${CONFIG.API_ENDPOINTS.details.replace(':id', this.merchantUUID)}`, {
+                const response = await fetch(`${CONFIG.SERVER_URL}${API_ENDPOINTS.details.replace(':id', this.merchantUUID)}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ walletAddress, sessionKey })
+                    body: JSON.stringify(auth)
                 });
 
                 const data = await response.json();
                 if (!data.success) return;
 
                 const merchantId = data.data.id;
-                const qrResponse = await fetch(`${CONFIG.SERVER_URL}${CONFIG.API_ENDPOINTS.qrCreate.replace(':merchantId', merchantId.toString())}`, {
+                const qrResponse = await fetch(`${CONFIG.SERVER_URL}${API_ENDPOINTS.qrCreate.replace(':merchantId', merchantId.toString())}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        walletAddress,
-                        sessionKey,
+                        ...auth,
                         quantity
                     })
                 });
@@ -334,10 +329,9 @@ class MerchantCreateSystem {
             return;
         }
 
-        const walletAddress = localStorage.getItem('connectedWalletAddress');
-        const sessionKey = localStorage.getItem('sessionKey');
+        const auth = getAuth();
 
-        if (!walletAddress || !sessionKey) {
+        if (!auth) {
             this.showError('Authentication required. Redirecting to login...');
             setTimeout(() => window.location.href = '/', 2000);
             return;
@@ -345,12 +339,11 @@ class MerchantCreateSystem {
 
         try {
             if (this.isEditMode && this.merchantUUID) {
-                const response = await fetch(`${CONFIG.SERVER_URL}${CONFIG.API_ENDPOINTS.update.replace(':id', this.merchantUUID)}`, {
+                const response = await fetch(`${CONFIG.SERVER_URL}${API_ENDPOINTS.update.replace(':id', this.merchantUUID)}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        walletAddress,
-                        sessionKey,
+                        ...auth,
                         name,
                         webhook_url,
                         solana_wallet
@@ -365,12 +358,11 @@ class MerchantCreateSystem {
                     this.showError(data.error || 'Failed to update merchant. Please try again.');
                 }
             } else {
-                const response = await fetch(`${CONFIG.SERVER_URL}${CONFIG.API_ENDPOINTS.create}`, {
+                const response = await fetch(`${CONFIG.SERVER_URL}${API_ENDPOINTS.create}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        walletAddress,
-                        sessionKey,
+                        ...auth,
                         name,
                         webhook_url,
                         solana_wallet,

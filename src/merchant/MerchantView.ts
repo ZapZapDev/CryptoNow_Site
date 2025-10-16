@@ -1,11 +1,9 @@
 import QRGenerator from './QRGenerator';
+import { CONFIG, getAuth } from '../typescript/config';
 
-const CONFIG = {
-    SERVER_URL: 'https://zapzap666.xyz',
-    API_ENDPOINTS: {
-        details: '/api/merchant/:id/details',
-        qrList: '/api/merchant/:merchantId/qr-codes/list'
-    }
+const API_ENDPOINTS = {
+    details: '/api/merchant/:id/details',
+    qrList: '/api/merchant/:merchantId/qr-codes/list'
 } as const;
 
 interface QRCode {
@@ -46,14 +44,14 @@ class MerchantViewSystem {
     }
 
     private async loadMerchantData(): Promise<void> {
-        const auth = this.getAuth();
+        const auth = getAuth();
         if (!auth) {
             window.location.href = '/';
             return;
         }
 
         try {
-            const response = await fetch(`${CONFIG.SERVER_URL}${CONFIG.API_ENDPOINTS.details.replace(':id', this.merchantUUID!)}`, {
+            const response = await fetch(`${CONFIG.SERVER_URL}${API_ENDPOINTS.details.replace(':id', this.merchantUUID!)}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(auth)
@@ -95,11 +93,11 @@ class MerchantViewSystem {
     }
 
     private async loadQRCodes(merchantId: number): Promise<void> {
-        const auth = this.getAuth();
+        const auth = getAuth();
         if (!auth) return;
 
         try {
-            const response = await fetch(`${CONFIG.SERVER_URL}${CONFIG.API_ENDPOINTS.qrList.replace(':merchantId', merchantId.toString())}`, {
+            const response = await fetch(`${CONFIG.SERVER_URL}${API_ENDPOINTS.qrList.replace(':merchantId', merchantId.toString())}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(auth)
@@ -243,12 +241,6 @@ class MerchantViewSystem {
         this.qrGenerator.downloadQR('qrCanvas', `qr-code-${Date.now()}.png`);
     }
 
-    private getAuth() {
-        const walletAddress = localStorage.getItem('connectedWalletAddress');
-        const sessionKey = localStorage.getItem('sessionKey');
-        if (!walletAddress || !sessionKey) return null;
-        return { walletAddress, sessionKey };
-    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {

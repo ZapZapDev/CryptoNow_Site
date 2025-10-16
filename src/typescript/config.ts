@@ -20,3 +20,13 @@ export const CONFIG = {
         }
     }
 };
+
+/**
+ * Get authenticated user credentials from localStorage
+ */
+export function getAuth() {
+    const walletAddress = localStorage.getItem('connectedWalletAddress');
+    const sessionKey = localStorage.getItem('sessionKey');
+    if (!walletAddress || !sessionKey) return null;
+    return { walletAddress, sessionKey };
+}
